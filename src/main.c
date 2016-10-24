@@ -11,49 +11,22 @@
 #define AULSMFS_ROOT_INODE   FUSE_ROOT_ID
 #define AULSMFS_ROOT_MODE    (S_IFDIR | 0755)
 
-#define AULSMFS_README_INODE 2
-#define AULSMFS_README_MODE  (S_IFREG | 0444)
-#define AULSMFS_README_NAME  "README"
-#define AULSMFS_README_CONT  "Hello, World"
-
 static void __aulsmfs_stat(fuse_ino_t ino, struct stat *stat)
 {
-	assert(ino == AULSMFS_ROOT_INODE || ino == AULSMFS_README_INODE);
+	assert(ino == AULSMFS_ROOT_INODE);
 
 	memset(stat, 0, sizeof(*stat));
-
-	if (ino == AULSMFS_ROOT_INODE) {
-		stat->st_ino = ino;
-		stat->st_mode = AULSMFS_ROOT_MODE;
-		stat->st_nlink = 2;
-		stat->st_size = 3;
-		return;
-	}
-
-	if (ino == AULSMFS_README_INODE) {
-		stat->st_ino = ino;
-		stat->st_mode = AULSMFS_README_MODE;
-		stat->st_nlink = 1;
-		stat->st_size = sizeof(AULSMFS_README_CONT);
-		return;
-	}
+	stat->st_ino = ino;
+	stat->st_mode = AULSMFS_ROOT_MODE;
+	stat->st_nlink = 1;
+	stat->st_size = 2;
 }
 
 static void aulsmfs_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 {
-	struct fuse_entry_param entry;
-
 	assert(parent == AULSMFS_ROOT_INODE);
-
-	if (strcmp(name, AULSMFS_README_NAME)) {
-		fuse_reply_err(req, ENOENT);
-		return;
-	}
-
-	memset(&entry, 0, sizeof(entry));
-	entry.ino = AULSMFS_README_INODE;
-	__aulsmfs_stat(entry.ino, &entry.attr);
-	fuse_reply_entry(req, &entry);
+	(void) name;
+	fuse_reply_err(req, ENOENT);
 }
 
 static void aulsmfs_getattr(fuse_req_t req, fuse_ino_t ino,
@@ -62,7 +35,6 @@ static void aulsmfs_getattr(fuse_req_t req, fuse_ino_t ino,
 	struct stat stat;
 
 	(void) fi;
-	memset(&stat, 0, sizeof(stat));
 	__aulsmfs_stat(ino, &stat);
 	fuse_reply_attr(req, &stat, 0.0);
 }
@@ -106,7 +78,7 @@ static void aulsmfs_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 	struct aulsmfs_dirbuf dirbuf;
 	struct stat stat;
 
-	assert(ino == AULSMFS_ROOT_INODE || ino == AULSMFS_README_INODE);
+	assert(ino == AULSMFS_ROOT_INODE);
 	(void) fi;
 
 	if (ino != AULSMFS_ROOT_INODE) {
@@ -122,9 +94,6 @@ static void aulsmfs_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 	case 1:
 		__aulsmfs_stat(AULSMFS_ROOT_INODE, &stat);
 		aulsmfs_dirbuf_add(req, &dirbuf, "..", &stat, 2);
-	case 2:
-		__aulsmfs_stat(AULSMFS_README_INODE, &stat);
-		aulsmfs_dirbuf_add(req, &dirbuf, AULSMFS_README_NAME, &stat, 3);
 	}
 	fuse_reply_buf(req, dirbuf.buf, dirbuf.size < size
 				? dirbuf.size : size);
@@ -134,38 +103,9 @@ static void aulsmfs_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 static void aulsmfs_open(fuse_req_t req, fuse_ino_t ino,
 			struct fuse_file_info *fi)
 {
-	assert(ino == AULSMFS_ROOT_INODE || ino == AULSMFS_README_INODE);
+	assert(ino == AULSMFS_ROOT_INODE);
 	(void) fi;
-
-	if (ino == AULSMFS_ROOT_INODE) {
-		fuse_reply_err(req, EISDIR);
-		return;
-	}
-
-	if ((fi->flags & 3) != O_RDONLY) {
-		fuse_reply_err(req, EACCES);
-		return;
-	}
-
-	fuse_reply_open(req, fi);
-}
-
-static void aulsmfs_read(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off,
-			struct fuse_file_info *fi)
-{
-	assert(ino == AULSMFS_README_INODE);
-	(void) fi;
-	(void) size;
-
-	if ((size_t)off >= sizeof(AULSMFS_README_CONT)) {
-		fuse_reply_buf(req, NULL, 0);
-		return;
-	}
-
-	const size_t tail = sizeof(AULSMFS_README_CONT) - off;
-
-	fuse_reply_buf(req, AULSMFS_README_CONT + off,
-				size < tail ? size : tail);
+	fuse_reply_err(req, EISDIR);
 }
 
 static const struct fuse_lowlevel_ops aulsmfs_ops = {
@@ -173,7 +113,6 @@ static const struct fuse_lowlevel_ops aulsmfs_ops = {
 	.getattr = &aulsmfs_getattr,
 	.readdir = &aulsmfs_readdir,
 	.open = &aulsmfs_open,
-	.read = &aulsmfs_read,
 };
 
 
