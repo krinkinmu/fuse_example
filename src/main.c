@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 
-#define AULSMFS_ROOT_INODE   1
+#define AULSMFS_ROOT_INODE   FUSE_ROOT_ID
 #define AULSMFS_ROOT_MODE    (S_IFDIR | 0755)
 
 #define AULSMFS_README_INODE 2
