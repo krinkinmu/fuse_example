@@ -1,5 +1,7 @@
 #define FUSE_USE_VERSION 30
+
 #include <fuse_lowlevel.h>
+
 #include <stdlib.h>
 #include <assert.h>
 #include <stddef.h>
@@ -7,9 +9,26 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 
 #define AULSMFS_ROOT_INODE   FUSE_ROOT_ID
 #define AULSMFS_ROOT_MODE    (S_IFDIR | 0755)
+
+
+struct aulsmfs_config {
+	const char *image_path;
+	int fd;
+};
+
+static const struct fuse_opt aulsmfs_opts[] = {
+	{"--image=%s", offsetof(struct aulsmfs_config, image_path), 0},
+	FUSE_OPT_END
+};
+
 
 static void __aulsmfs_stat(fuse_ino_t ino, struct stat *stat)
 {
@@ -119,9 +138,15 @@ static const struct fuse_lowlevel_ops aulsmfs_ops = {
 #define AULSMFS_MAJOR 0
 #define AULSMFS_MINOR 1
 
+static void aulsmfs_help(void)
+{
+	printf("    --image=path           path to the block device image\n\n");
+}
+
 static void usage(const char *name)
 {
 	printf("usage: %s [options] <mountpoint>\n\n", name);
+	aulsmfs_help();
 	fuse_cmdline_help();
 	fuse_lowlevel_help();
 }
@@ -137,12 +162,22 @@ int main(int argc, char **argv)
 {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 	struct fuse_cmdline_opts opts;
+	struct aulsmfs_config config;
 	struct fuse_session *se;
-	int ret = 0;
+	int ret = 1;
+
+	memset(&opts, 0, sizeof(opts));
+	memset(&config, 0, sizeof(config));
+	config.fd = -1;
+
+	if (fuse_opt_parse(&args, &config, aulsmfs_opts, NULL)) {
+		puts("Failed to parse cmdline");
+		goto out;
+	}
 
 	if (fuse_parse_cmdline(&args, &opts)) {
 		puts("Failed to parse cmdline");
-		return 1;
+		goto out;
 	}
 
 	if (opts.show_help) {
@@ -155,8 +190,25 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	se = fuse_session_new(&args, &aulsmfs_ops, sizeof(aulsmfs_ops), NULL);
-	ret = 1;
+	if (!config.image_path) {
+		puts("You didn't specified device image path (--image option)");
+		usage(argv[0]);
+		goto out;
+	};
+
+	/* FUSE employs kernel page cache, so no point caching it again,
+	 * this is why we use O_DIRECT here. But O_DIRECT doesn't provide
+	 * guarantees of SYNC or DSYNC. For filesystem metadata we will
+	 * use our own caching if neccessary. */
+	config.fd = open(config.image_path, O_RDWR | O_DIRECT);
+	if (-1 == config.fd) {
+		printf("Failed to open backing device image %s\n",
+					config.image_path);
+		goto out;
+	}
+
+	se = fuse_session_new(&args, &aulsmfs_ops, sizeof(aulsmfs_ops),
+				&config);
 	if (!se) {
 		puts("Failed to create fuse session");
 		goto out;
@@ -189,6 +241,10 @@ destroy_session:
 	fuse_session_destroy(se);
 
 out:
+	if (-1 != config.fd)
+		close(config.fd);
+
+	free((void *)config.image_path);
 	free(opts.mountpoint);
 	fuse_opt_free_args(&args);
 
