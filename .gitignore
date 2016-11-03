@@ -1,3 +1,5 @@
 *.d
 *.o
+*.a
 aulsmfs.*
+lib/crc64_table.h
