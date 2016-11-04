@@ -3,10 +3,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <endian.h>
+
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include <stdio.h>
+
 #include <aulsmfs.h>
+#include <crc64.h>
 
 struct aulsmfs_config {
 	uint64_t bytes;
@@ -16,10 +21,33 @@ struct aulsmfs_config {
 	int fd;
 };
 
+static int file_write(int fd, const void *buf, size_t size)
+{
+	const char *ptr = buf;
+
+	for (size_t written = 0; written != size;) {
+		const int rc = write(fd, ptr + written, size - written);
+
+		if (rc < 0)
+			return rc;
+		written += rc;
+	}
+
+	return 0;
+}
+
 static int aulsmfs_mkfs(const struct aulsmfs_config *config)
 {
-	(void) config;
-	return 0;
+	struct aulsmfs_super super;
+
+	memset(&super, 0, sizeof(super));
+	super.magic = htole64(AULSMFS_MAGIC);
+	super.version = htole64(AULSMFS_VERSION);
+	super.page_size = htole64(config->page_size);
+	super.pages = htole64(config->pages);
+	super.csum = htole64(crc64(&super, sizeof(super)));
+
+	return file_write(config->fd, &super, sizeof(super));
 }
 
 static void aulsmfs_config_default(struct aulsmfs_config *config)
