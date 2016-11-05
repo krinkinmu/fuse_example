@@ -28,6 +28,13 @@ int file_write(int fd, const void *data, int size)
 	return 0;
 }
 
+int file_write_at(int fd, const void *data, int size, off_t off)
+{
+	if (lseek(fd, off, SEEK_SET) == (off_t)-1)
+		return -1;
+	return file_write(fd, data, size);
+}
+
 int file_read(int fd, void *data, int size)
 {
 	char *buf = data;
@@ -46,4 +53,11 @@ int file_read(int fd, void *data, int size)
 	}
 
 	return r;
+}
+
+int file_read_at(int fd, void *data, int size, off_t off)
+{
+	if (lseek(fd, off, SEEK_SET) == (off_t)-1)
+		return -1;
+	return file_read(fd, data, size);
 }
