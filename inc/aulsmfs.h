@@ -9,6 +9,9 @@
 #define AULSMFS_MINOR	1
 #define AULSMFS_VERSION	(((uint64_t)AULSMFS_MAJOR << 32) | (AULSMFS_MINOR))
 
+#define AULSMFS_GET_MINOR(version) ((version) & 0xfffffffful)
+#define AULSMFS_GET_MAJOR(version) ((version) >> 32)
+
 
 /* We are using little endian since it's native byte order
  * for the majority of existing architectures. */
