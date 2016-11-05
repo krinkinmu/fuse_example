@@ -12,6 +12,7 @@
 
 #include <aulsmfs.h>
 #include <crc64.h>
+#include <file_wrappers.h>
 
 struct aulsmfs_config {
 	uint64_t bytes;
@@ -20,21 +21,6 @@ struct aulsmfs_config {
 	const char *path;
 	int fd;
 };
-
-static int file_write(int fd, const void *buf, size_t size)
-{
-	const char *ptr = buf;
-
-	for (size_t written = 0; written != size;) {
-		const int rc = write(fd, ptr + written, size - written);
-
-		if (rc < 0)
-			return rc;
-		written += rc;
-	}
-
-	return 0;
-}
 
 static int aulsmfs_mkfs(const struct aulsmfs_config *config)
 {
@@ -58,20 +44,9 @@ static void aulsmfs_config_default(struct aulsmfs_config *config)
 	config->fd = -1;
 }
 
-static int get_file_size(int fd, uint64_t *size)
-{
-	struct stat stat;
-
-	if (fstat(fd, &stat) < 0)
-		return -1;
-
-	*size = stat.st_size;
-	return 0;
-}
-
 static int aulsmfs_config_check(struct aulsmfs_config *config)
 {
-	uint64_t file_size;
+	ssize_t bytes;
 
 	assert(config->path);
 	assert(config->page_size >= 512);
@@ -83,13 +58,13 @@ static int aulsmfs_config_check(struct aulsmfs_config *config)
 		return -1;
 	}
 
-	if (get_file_size(config->fd, &file_size) < 0) {
+	if ((bytes = file_size(config->fd)) < 0) {
 		printf("Failed to get file %s size\n", config->path);
 		return -1;
 	}
 
 	if (!config->bytes && !config->pages)
-		config->bytes = file_size;
+		config->bytes = bytes;
 
 	config->bytes &= ~(config->page_size - 1);
 	if (!config->bytes)
@@ -103,7 +78,7 @@ static int aulsmfs_config_check(struct aulsmfs_config *config)
 		return -1;
 	}
 
-	if (config->bytes > file_size) {
+	if (config->bytes > (uint64_t)bytes) {
 		if (ftruncate(config->fd, config->bytes) < 0) {
 			printf("Truncate for file %s failed\n", config->path);
 			return -1;
