@@ -12,7 +12,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <endian.h>
 #include <fcntl.h>
+
+#include <aulsmfs.h>
+#include <file_wrappers.h>
+#include <crc64.h>
 
 
 #define AULSMFS_ROOT_INODE   FUSE_ROOT_ID
@@ -20,12 +25,17 @@
 
 
 struct aulsmfs_config {
-	const char *image_path;
+	const char *path;
 	int fd;
+
+	uint64_t minor;
+	uint64_t major;
+	uint64_t page_size;
+	uint64_t pages;
 };
 
 static const struct fuse_opt aulsmfs_opts[] = {
-	{"--image=%s", offsetof(struct aulsmfs_config, image_path), 0},
+	{"--image=%s", offsetof(struct aulsmfs_config, path), 0},
 	FUSE_OPT_END
 };
 
@@ -134,9 +144,36 @@ static const struct fuse_lowlevel_ops aulsmfs_ops = {
 	.open = &aulsmfs_open,
 };
 
+static int aulsmfs_super_read(struct aulsmfs_config *config)
+{
+	struct aulsmfs_super super;
+	const int size = sizeof(super);
+	uint64_t csum;
 
-#define AULSMFS_MAJOR 0
-#define AULSMFS_MINOR 1
+	if (file_read_at(config->fd, &super, size, 0) != size) {
+		printf("Failed to read super block in %s\n", config->path);
+		return -1;
+	}
+
+	if (le64toh(super.magic) != AULSMFS_MAGIC) {
+		printf("Magic value doesn't match expected value\n");
+		return -1;
+	}
+
+	csum = le64toh(super.csum);
+	super.csum = 0;
+
+	if (csum != crc64(&super, sizeof(super))) {
+		printf("Control sum of super block doesn't match.\n");
+		return -1;
+	}
+
+	config->minor = AULSMFS_GET_MINOR(le64toh(super.version));
+	config->major = AULSMFS_GET_MAJOR(le64toh(super.version));
+	config->pages = le64toh(super.pages);
+	config->page_size = le64toh(super.page_size);
+	return 0;
+}
 
 static void aulsmfs_help(void)
 {
@@ -190,22 +227,20 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	if (!config.image_path) {
+	if (!config.path) {
 		puts("You didn't specified device image path (--image option)");
 		usage(argv[0]);
 		goto out;
 	};
 
-	/* FUSE employs kernel page cache, so no point caching it again,
-	 * this is why we use O_DIRECT here. But O_DIRECT doesn't provide
-	 * guarantees of SYNC or DSYNC. For filesystem metadata we will
-	 * use our own caching if neccessary. */
-	config.fd = open(config.image_path, O_RDWR | O_DIRECT);
-	if (-1 == config.fd) {
-		printf("Failed to open backing device image %s\n",
-					config.image_path);
+	config.fd = open(config.path, O_RDWR);
+	if (config.fd < 0) {
+		printf("Failed to open backing device image %s\n", config.path);
 		goto out;
 	}
+
+	if (aulsmfs_super_read(&config) < 0)
+		goto out;
 
 	se = fuse_session_new(&args, &aulsmfs_ops, sizeof(aulsmfs_ops),
 				&config);
@@ -241,10 +276,10 @@ destroy_session:
 	fuse_session_destroy(se);
 
 out:
-	if (-1 != config.fd)
+	if (config.fd >= 0)
 		close(config.fd);
 
-	free((void *)config.image_path);
+	free((void *)config.path);
 	free(opts.mountpoint);
 	fuse_opt_free_args(&args);
 
