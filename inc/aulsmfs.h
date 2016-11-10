@@ -31,11 +31,37 @@ struct aulsmfs_ptr {
 	le64_t csum;
 } __attribute__((packed));
 
+/* Tree log maintains checksum per log record/chunk/etc, but instead of csum
+ * we need a generation value, see explanation below. */
+struct aulsmfs_tree_log {
+	le64_t offs;
+	le64_t size;
+	le64_t gen;
+} __attribute__((packed));
+
+/* Log is a sequence of log entries, every log entry is page aligned and has a
+ * "header", this structure describes footer format. */
+struct aulsmfs_log_entry {
+	/* We allocate large contigous range of disk space for our log, and if
+	 * we haven't filled the whole log than there may be uninitialized
+	 * areas, we need to differ uninitialized areas from corrupted entries.
+	 * In order to do that we use autoincremented generation value. */
+	le64_t gen;
+
+	/* Bytes of user data in the log, since every log entry is page aligned,
+	 * we need somehow to track how many bytes of user data are really in
+	 * the log. */
+	le64_t size;
+
+	/* Checksum of the whole log entry with user data/paddings/etc. */
+	le64_t csum;
+} __attribute__((packed));
+
 struct aulsmfs_tree {
 	/* С0 is generally in-memory tree, but we log all C0 keys in a
 	 * journal so that we don't need to merge C0 with the next tree
 	 * to commit. */
-	struct aulsmfs_ptr c0_log;
+	struct aulsmfs_tree_log c0_log;
 
 	/* C1, like C0, is generally in-memory tree. This tree is used
 	 * when we merge C0. We don't want to stop updates while we are
@@ -43,7 +69,7 @@ struct aulsmfs_tree {
 	 * and while we are merging C1 with the next tree we still can
 	 * update C0. And while merge is still in progress we retain
 	 * reference to the log. */
-	struct aulsmfs_ptr c1_log;
+	struct aulsmfs_tree_log c1_log;
 
 	/* These point on the root nodes of the B+ trees. Zero offset
 	 * and size means that tree is empty. */
