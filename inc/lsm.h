@@ -2,20 +2,15 @@
 #define __LSM_H__
 
 #include <aulsmfs.h>
+#include <aulsmfs_io.h>
 
 #include <stddef.h>
 
-struct lsm_config {
-	uint64_t page_size;
-	uint64_t log_pages;
-	int fd;
-};
+struct aulsmfs_lsm_log {
+	struct aulsmfs_io *io;
 
-struct lsm_log {
-	const struct lsm_config *config;
-
-	/* Offset the log area in bytes. */
-	uint64_t offs;
+	/* Offset and size of the log area. */
+	uint64_t offs, size;
 
 	/* Generation of the next log entry. */
 	uint64_t gen;
@@ -29,12 +24,18 @@ struct lsm_log {
 	void *buf;
 };
 
-void lsm_log_create(struct lsm_log *log, const struct lsm_config *config,
-			uint64_t offs, uint64_t gen);
-void lsm_log_destroy(struct lsm_log *log);
-size_t lsm_log_remains(const struct lsm_log *log);
-size_t lsm_log_size(const struct lsm_log *log);
-int lsm_log_append(struct lsm_log *log, const void *data, size_t size);
-int lsm_log_checkpoint(struct lsm_log *log);
+void aulsmfs_lsm_log_create(struct aulsmfs_lsm_log *log,
+			struct aulsmfs_io *io, uint64_t gen,
+			uint64_t offs, uint64_t size);
+void auslsmfs_lsm_log_destroy(struct aulsmfs_lsm_log *log);
+size_t aulsmfs_lsm_log_remains(const struct aulsmfs_lsm_log *log);
+size_t aulsmfs_lsm_log_size(const struct aulsmfs_lsm_log *log);
+int aulsmfs_lsm_log_append(struct aulsmfs_lsm_log *log,
+			const void *data, size_t size);
+
+/* Checkpoint operation doesn't preform sync because it's enought to do it just
+ * before filesystem root writing and maybe, to ensure commit persistancy, right
+ * after root has been written. */
+int aulsmfs_lsm_log_checkpoint(struct aulsmfs_lsm_log *log);
 
 #endif /*__LSM_H__*/
