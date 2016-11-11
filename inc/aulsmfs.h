@@ -17,6 +17,7 @@
 
 /* We are using little endian since it's native byte order
  * for the majority of existing architectures. */
+typedef uint8_t		le8_t;	/* just for the sake of consistency */
 typedef uint16_t	le16_t;
 typedef uint32_t	le32_t;
 typedef uint64_t	le64_t;
@@ -41,20 +42,34 @@ struct aulsmfs_tree_log {
 
 /* Log is a sequence of log entries, every log entry is page aligned and has a
  * "header", this structure describes footer format. */
-struct aulsmfs_log_entry {
+struct aulsmfs_log_header {
 	/* We allocate large contigous range of disk space for our log, and if
 	 * we haven't filled the whole log than there may be uninitialized
 	 * areas, we need to differ uninitialized areas from corrupted entries.
 	 * In order to do that we use autoincremented generation value. */
 	le64_t gen;
 
-	/* Bytes of user data in the log, since every log entry is page aligned,
-	 * we need somehow to track how many bytes of user data are really in
-	 * the log. */
+	/* Bytes of data in the log including this log entry, since every log
+	 * entry is page aligned, we need somehow to track how many bytes of
+	 * user data are really in the log. */
 	le64_t size;
 
 	/* Checksum of the whole log entry with user data/paddings/etc. */
 	le64_t csum;
+} __attribute__((packed));
+
+/*  Both key size and value size are given in bytes. */
+struct aulsmfs_node_entry {
+	le16_t key_size;
+	le16_t val_size;
+	le8_t deleted;
+} __attribute__((packed));
+
+struct aulsmfs_node_header {
+	/* How many bytes this tree node really contains. */
+	le64_t size;
+	/* Level of this node in the tree, 0 - leaf node. */
+	le64_t level;
 } __attribute__((packed));
 
 struct aulsmfs_tree {
