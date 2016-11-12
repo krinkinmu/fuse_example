@@ -61,5 +61,44 @@ struct lsm {
 
 
 int lsm_add(struct lsm *lsm, const lsm_key *key, const lsm_val *val);
+int lsm_del(struct lsm *lsm, const lsm_key *key);
+
+
+/* Structure points in the buffer inside lsm_node structure, so we can't use
+ * lsm_key and lsm_val since we might need to resize buffer and render pointers
+ * invalid. */
+struct lsm_entry_pos {
+	size_t key_pos;
+	size_t key_size;
+	size_t val_pos;
+	size_t val_size;
+};
+
+struct lsm_node {
+	struct lsm *lsm;
+
+	struct lsm_entry_pos *entry;
+	size_t entries;
+	size_t capacity;
+
+	char *data;
+	size_t data_size;
+	size_t data_capacity;
+
+	uint64_t csum;
+
+	/* These three values must be set before writing node by caller. */
+	uint64_t offs;
+	uint64_t size;
+	int level;
+
+	char _data[1];
+};
+
+struct lsm_merge_state {
+	struct lsm_node **node;
+	size_t levels, capacity;
+	struct lsm_node *_node[16];
+};
 
 #endif /*__LSM_H__*/
