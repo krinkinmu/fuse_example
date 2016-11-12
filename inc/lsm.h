@@ -2,7 +2,7 @@
 #define __LSM_H__
 
 #include <aulsmfs.h>
-#include <rbtree.h>
+#include <mtree.h>
 #include <io.h>
 
 #include <stdint.h>
@@ -11,24 +11,21 @@
 
 struct lsm;
 
-struct mtree {
-	struct lsm *lsm;
-	struct rb_tree tree;
-};
-
 struct ctree {
 	/* For now just root node offset and size, if size == 0 then tree is
 	 * empty. */
 	uint64_t offs, size;
 };
 
-struct lsm_entry_ptr {
+struct lsm_key {
 	void *ptr;
 	size_t size;
 };
 
-typedef struct lsm_entry_ptr lsm_key;
-typedef struct lsm_entry_ptr lsm_val;
+struct lsm_val {
+	void *ptr;
+	size_t size;
+};
 
 
 struct lsm_alloc {
@@ -48,7 +45,7 @@ struct lsm {
 	struct lsm_alloc *alloc;
 
 	/* Key comparision function. */
-	int (*cmp)(const lsm_key *, const lsm_key *);
+	int (*cmp)(const struct lsm_key *, const struct lsm_key *);
 
 	/* Two in memory trees, all inserts/deletes go to c0, c1 is a temporary
 	 * tree that contains fixed state of c0 during merge. */
@@ -60,8 +57,9 @@ struct lsm {
 };
 
 
-int lsm_add(struct lsm *lsm, const lsm_key *key, const lsm_val *val);
-int lsm_del(struct lsm *lsm, const lsm_key *key);
+int lsm_add(struct lsm *lsm, const struct lsm_key *key,
+			const struct lsm_val *val);
+int lsm_del(struct lsm *lsm, const struct lsm_key *key);
 
 
 /* Structure points in the buffer inside lsm_node structure, so we can't use
