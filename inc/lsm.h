@@ -14,18 +14,6 @@ struct lsm;
 struct mtree {
 	struct lsm *lsm;
 	struct rb_tree tree;
-	char *buf;
-
-	/* Offset and size of the log space. */
-	uint64_t offs, size;
-	/* First log entry generation and the next one. */
-	uint64_t start_gen, next_gen;
-
-	/* Starting page of the next entry in the log space. */
-	size_t next_pos;
-
-	/* Size of the current unwritten data in bytes. */
-	size_t next_size;
 };
 
 struct ctree {

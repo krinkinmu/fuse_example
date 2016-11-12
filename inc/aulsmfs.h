@@ -12,7 +12,7 @@
 #define AULSMFS_GET_MINOR(version) ((version) & 0xfffffffful)
 #define AULSMFS_GET_MAJOR(version) ((version) >> 32)
 
-#define AULSMFS_MAX_DISK_TREES	8
+#define AULSMFS_MAX_DISK_TREES	3
 
 
 /* We are using little endian since it's native byte order
@@ -73,19 +73,6 @@ struct aulsmfs_node_header {
 } __attribute__((packed));
 
 struct aulsmfs_tree {
-	/* С0 is generally in-memory tree, but we log all C0 keys in a
-	 * journal so that we don't need to merge C0 with the next tree
-	 * to commit. */
-	struct aulsmfs_tree_log c0_log;
-
-	/* C1, like C0, is generally in-memory tree. This tree is used
-	 * when we merge C0. We don't want to stop updates while we are
-	 * merging C0 so we move C0 to C1 thus fixate C0 state in C1,
-	 * and while we are merging C1 with the next tree we still can
-	 * update C0. And while merge is still in progress we retain
-	 * reference to the log. */
-	struct aulsmfs_tree_log c1_log;
-
 	/* These point on the root nodes of the B+ trees. Zero offset
 	 * and size means that tree is empty. */
 	struct aulsmfs_ptr ci[AULSMFS_MAX_DISK_TREES];
