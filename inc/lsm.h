@@ -35,9 +35,12 @@ struct lsm_alloc {
 	 *  - persist marks previously reserved range as busy (commits)
 	 * cancel just cancels reservation, for example if we allocated too
 	 * much, we can release unused space. */
-	int (*reserve)(uint64_t /* size */, uint64_t * /* returned offset */);
-	int (*persist)(uint64_t /* offset */, uint64_t /* size */);
-	int (*cancel)(uint64_t /* offset */, uint64_t /* size */);
+	int (*reserve)(struct lsm_alloc *, uint64_t /* size */,
+				uint64_t * /* returned offset */);
+	int (*persist)(struct lsm_alloc *, uint64_t /* offset */,
+				uint64_t /* size */);
+	void (*cancel)(struct lsm_alloc *, uint64_t /* offset */,
+				uint64_t /* size */);
 };
 
 struct lsm {
@@ -56,6 +59,20 @@ struct lsm {
 	struct ctree ci[AULSMFS_MAX_DISK_TREES];
 };
 
+inline int lsm_reserve(struct lsm *lsm, uint64_t size, uint64_t *offs)
+{
+	return lsm->alloc->reserve(lsm->alloc, size, offs);
+}
+
+inline int lsm_persist(struct lsm *lsm, uint64_t offs, uint64_t size)
+{
+	return lsm->alloc->persist(lsm->alloc, offs, size);
+}
+
+inline void lsm_cancel(struct lsm *lsm, uint64_t offs, uint64_t size)
+{
+	lsm->alloc->cancel(lsm->alloc, offs, size);
+}
 
 int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 			const struct lsm_val *val);
