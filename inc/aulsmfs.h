@@ -32,33 +32,7 @@ struct aulsmfs_ptr {
 	le64_t csum;
 } __attribute__((packed));
 
-/* Tree log maintains checksum per log record/chunk/etc, but instead of csum
- * we need a generation value, see explanation below. */
-struct aulsmfs_tree_log {
-	le64_t offs;
-	le64_t size;
-	le64_t gen;
-} __attribute__((packed));
-
-/* Log is a sequence of log entries, every log entry is page aligned and has a
- * "header", this structure describes footer format. */
-struct aulsmfs_log_header {
-	/* We allocate large contigous range of disk space for our log, and if
-	 * we haven't filled the whole log than there may be uninitialized
-	 * areas, we need to differ uninitialized areas from corrupted entries.
-	 * In order to do that we use autoincremented generation value. */
-	le64_t gen;
-
-	/* Bytes of data in the log including this log entry, since every log
-	 * entry is page aligned, we need somehow to track how many bytes of
-	 * user data are really in the log. */
-	le64_t size;
-
-	/* Checksum of the whole log entry with user data/paddings/etc. */
-	le64_t csum;
-} __attribute__((packed));
-
-/*  Both key size and value size are given in bytes. */
+/* Both key size and value size are given in bytes. */
 struct aulsmfs_node_entry {
 	le16_t key_size;
 	le16_t val_size;
@@ -72,10 +46,15 @@ struct aulsmfs_node_header {
 	le64_t level;
 } __attribute__((packed));
 
+struct aulsmfs_ctree {
+	struct aulsmfs_ptr ptr;
+	le16_t hight;
+};
+
 struct aulsmfs_tree {
 	/* These point on the root nodes of the B+ trees. Zero offset
 	 * and size means that tree is empty. */
-	struct aulsmfs_ptr ci[AULSMFS_MAX_DISK_TREES];
+	struct aulsmfs_ctree ci[AULSMFS_MAX_DISK_TREES];
 } __attribute__((packed));
 
 struct aulsmfs_super {
