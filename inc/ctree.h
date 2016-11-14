@@ -34,10 +34,17 @@ struct ctree_node {
 
 struct ctree_builder {
 	struct lsm *lsm;
-};
 
-void ctree_builder_setup(struct ctree_builder *builder, struct lsm *lsm);
-void ctree_builder_release(struct ctree_builder *builder);
+	struct ctree_node *node;
+	int nodes;
+	int max_nodes;
+
+	/* These will be set by ctree_builder_finish. */
+	uint64_t offs;
+	uint64_t size;
+	uint64_t csum;
+	int hight;
+};
 
 int ctree_node_setup(const struct lsm *lsm, struct ctree_node *node);
 void ctree_node_reset(struct ctree_node *node);
@@ -51,5 +58,11 @@ int ctree_node_append(const struct lsm *lsm, struct ctree_node *node,
 			const struct lsm_val *val);
 int ctree_node_write(struct lsm *lsm, struct ctree_node *node,
 			uint64_t offs, int level);
+
+void ctree_builder_setup(struct ctree_builder *builder, struct lsm *lsm);
+void ctree_builder_release(struct ctree_builder *builder);
+int ctree_builder_append(struct ctree_builder *builder, int deleted,
+			const struct lsm_key *key, const struct lsm_val *val);
+int ctree_builder_finish(struct ctree_builder *builder);
 
 #endif /*__CTREE_H__*/
