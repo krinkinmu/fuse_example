@@ -10,6 +10,34 @@
 #include <errno.h>
 
 
+struct ctree_entry {
+	size_t key_offs;
+	size_t key_size;
+	size_t val_offs;
+	size_t val_size;
+	int deleted;
+};
+
+struct ctree_node {
+	char *buf;
+	size_t bytes;
+	size_t max_bytes;
+
+	struct ctree_entry *entry;
+	size_t entries;
+	size_t max_entries;
+
+	/* This will be set by ctree_node_write. */
+	uint64_t offs;
+	uint64_t size;
+	uint64_t csum;
+	int level;
+};
+
+
+static const size_t MIN_FANOUT = 100;
+
+
 static int __ctree_node_setup(const struct lsm *lsm, struct ctree_node *node,
 			size_t size, size_t count)
 {
@@ -34,7 +62,7 @@ static int __ctree_node_setup(const struct lsm *lsm, struct ctree_node *node,
 	return 0;
 }
 
-void ctree_node_reset(struct ctree_node *node)
+static void ctree_node_reset(struct ctree_node *node)
 {
 	assert(node->buf);
 	assert(node->max_bytes >= sizeof(struct aulsmfs_node_header));
@@ -46,7 +74,7 @@ void ctree_node_reset(struct ctree_node *node)
 	node->bytes = sizeof(struct aulsmfs_node_header);
 }
 
-int ctree_node_setup(const struct lsm *lsm, struct ctree_node *node)
+static int ctree_node_setup(const struct lsm *lsm, struct ctree_node *node)
 {
 	const size_t page_size = lsm->io->page_size;
 	const int rc = __ctree_node_setup(lsm, node,
@@ -59,21 +87,23 @@ int ctree_node_setup(const struct lsm *lsm, struct ctree_node *node)
 	return 0;
 }
 
-void ctree_node_release(struct ctree_node *node)
+static void ctree_node_release(struct ctree_node *node)
 {
 	free(node->buf);
 	free(node->entry);
 	memset(node, 0, sizeof(*node));
 }
 
-size_t ctree_node_pages(const struct lsm *lsm, const struct ctree_node *node)
+static size_t ctree_node_pages(const struct lsm *lsm,
+			const struct ctree_node *node)
 {
 	const size_t page_size = lsm->io->page_size;
 
 	return (node->bytes + page_size - 1) / page_size;
 }
 
-int ctree_node_can_append(const struct lsm *lsm, const struct ctree_node *node,
+static int ctree_node_can_append(const struct lsm *lsm,
+			const struct ctree_node *node,
 			size_t count, size_t size)
 {
 	const size_t bytes = count * sizeof(struct aulsmfs_node_entry) + size;
@@ -132,7 +162,7 @@ static int ctree_ensure_entries(const struct lsm *lsm, struct ctree_node *node,
 	return 0;
 }
 
-int ctree_node_append(const struct lsm *lsm, struct ctree_node *node,
+static int ctree_node_append(const struct lsm *lsm, struct ctree_node *node,
 			int deleted, const struct lsm_key *key,
 			const struct lsm_val *val)
 {
@@ -170,7 +200,7 @@ int ctree_node_append(const struct lsm *lsm, struct ctree_node *node,
 	return 0;
 }
 
-int ctree_node_write(struct lsm *lsm, struct ctree_node *node,
+static int ctree_node_write(struct lsm *lsm, struct ctree_node *node,
 			uint64_t offs, int level)
 {
 	const size_t size = ctree_node_pages(lsm, node);
@@ -184,6 +214,9 @@ int ctree_node_write(struct lsm *lsm, struct ctree_node *node,
 	if (rc < 0)
 		return rc;
 
+	node->offs = offs;
+	node->size = size;
+	node->level = level;
 	node->csum = crc64(node->buf, size * lsm->io->page_size);
 	return 0;
 }
@@ -207,15 +240,25 @@ static int __ctree_builder_append(struct ctree_builder *builder, int level,
 			int deleted, const struct lsm_key *key,
 			const struct lsm_val *val);
 
-static int __ctree_builder_flush(struct ctree_builder *builder, int level)
+static struct ctree_node *ctree_builder_node(
+			const struct ctree_builder *builder,
+			int level)
+{
+	return &builder->node[level];
+}
+
+static int ctree_builder_flush(struct ctree_builder *builder, int level)
 {
 	struct lsm * const lsm = builder->lsm;
-	struct ctree_node *node = &builder->node[level];
+	struct ctree_node *node = ctree_builder_node(builder, level);
 	uint64_t size = ctree_node_pages(lsm, node);
 	uint64_t offs;
+	int rc;
 
-	int rc = lsm_reserve(lsm, size, &offs);
+	if (!node->entries)
+		return 0;
 
+	rc = lsm_reserve(lsm, size, &offs);
 	if (rc < 0)
 		return rc;
 
@@ -238,10 +281,15 @@ static int __ctree_builder_flush(struct ctree_builder *builder, int level)
 		.size = sizeof(ptr)
 	};
 
-	return __ctree_builder_append(builder, level + 1, 0, &key, &val);
+	rc = __ctree_builder_append(builder, level + 1, 0, &key, &val);
+	if (rc < 0)
+		return rc;
+
+	ctree_node_reset(node);
+	return 0;
 }
 
-static int ctree_builder_ensure_node(struct ctree_builder *builder, int level)
+static int ctree_builder_ensure_level(struct ctree_builder *builder, int level)
 {
 	const struct lsm * const lsm = builder->lsm;
 
@@ -261,7 +309,8 @@ static int ctree_builder_ensure_node(struct ctree_builder *builder, int level)
 	}
 
 	for (int i = builder->nodes; i <= level; ++i) {
-		const int rc = ctree_node_setup(lsm, &builder->node[i]);
+		struct ctree_node *node = ctree_builder_node(builder, i);
+		const int rc = ctree_node_setup(lsm, node);
 
 		if (rc < 0)
 			return rc;
@@ -270,32 +319,35 @@ static int ctree_builder_ensure_node(struct ctree_builder *builder, int level)
 	return 0;
 }
 
+static int ctree_builder_can_append(const struct ctree_builder *builder,
+			int level, size_t count, size_t size)
+{
+	const struct lsm *lsm = builder->lsm;
+	const struct ctree_node *node = ctree_builder_node(builder,
+				level);
+
+	return ctree_node_can_append(lsm, node, count, size);
+}
+
 static int __ctree_builder_append(struct ctree_builder *builder, int level,
 			int deleted, const struct lsm_key *key,
 			const struct lsm_val *val)
 {
 	struct lsm * const lsm = builder->lsm;
 	const size_t size = key->size + val->size;
-	const int rc = ctree_builder_ensure_node(builder, level);
+	const int rc = ctree_builder_ensure_level(builder, level);
 
 	if (rc < 0)
 		return rc;
 
-	struct ctree_node *node = &builder->node[level];
-
-	if (!ctree_node_can_append(lsm, node, 1, size)) {
-		const int rc = __ctree_builder_flush(builder, level);
+	if (!ctree_builder_can_append(builder, level, 1, size)) {
+		const int rc = ctree_builder_flush(builder, level);
 
 		if (rc < 0)
 			return rc;
-
-		/* __ctree_builder_flush may call __ctree_builder_append,
-		 * which in turn may call ctree_builder_ensure_node which
-		 * may resize node array in ctree_builder and so render
-		 * node pointer invalid. */
-		node = &builder->node[level];
-		ctree_node_reset(node);
 	}
+
+	struct ctree_node *node = ctree_builder_node(builder, level);
 
 	assert(ctree_node_can_append(lsm, node, 1, size));
 	return ctree_node_append(lsm, node, deleted, key, val);
@@ -314,20 +366,15 @@ int ctree_builder_finish(struct ctree_builder *builder)
 	int rc;
 
 	while (level < builder->nodes - 1) {
-		struct ctree_node *node = &builder->node[level];
-
-		++level;
-		if (!node->entries)
-			continue;
-
-		rc = __ctree_builder_flush(builder, level - 1);
+		rc = ctree_builder_flush(builder, level);
 		if (rc < 0)
 			return rc;
+		++level;
 	}
 
 	/* We have written all but last level, the node will be root of the
 	 * ctree. */
-	struct ctree_node *root = &builder->node[level];
+	struct ctree_node *root = ctree_builder_node(builder, level);
 	const size_t size = ctree_node_pages(lsm, root);
 	uint64_t offs;
 
@@ -343,5 +390,6 @@ int ctree_builder_finish(struct ctree_builder *builder)
 	builder->size = size;
 	builder->csum = root->csum;
 	builder->hight = level + 1;
+	ctree_node_reset(root);
 	return 0;
 }
