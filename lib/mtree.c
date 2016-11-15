@@ -29,11 +29,19 @@ static struct mtree_node *mtree_node_create(int deleted,
 
 	new->key.ptr = key_ptr;
 	new->key.size = key->size;
-	memcpy(new->key.ptr, key->ptr, new->key.size);
+
+	if (key->size) {
+		assert(key->ptr);
+		memcpy(new->key.ptr, key->ptr, new->key.size);
+	}
 
 	new->val.ptr = val_ptr;
 	new->val.size = val->size;
-	memcpy(new->val.ptr, val->ptr, new->val.size);
+
+	if (val->size) {
+		assert(val->ptr);
+		memcpy(new->val.ptr, val->ptr, new->val.size);
+	}
 
 	new->deleted = deleted;
 	return new;
