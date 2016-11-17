@@ -71,10 +71,10 @@ static void ctree_node_reset(struct ctree_node *node)
 	assert(node->buf);
 	assert(node->max_bytes >= sizeof(struct aulsmfs_node_header));
 
-	memset(node->entry, 0, node->entries * sizeof(*node->entry));
+	memset(node->entry, 0, node->max_entries * sizeof(*node->entry));
 	node->entries = 0;
 
-	memset(node->buf, 0, node->bytes);
+	memset(node->buf, 0, node->max_bytes);
 	node->bytes = sizeof(struct aulsmfs_node_header);
 }
 
