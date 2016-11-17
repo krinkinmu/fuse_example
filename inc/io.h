@@ -21,7 +21,7 @@ struct io {
 	size_t page_size;
 };
 
-inline void io_setup(struct io *io, struct io_ops *ops, size_t page_size)
+static inline void io_setup(struct io *io, struct io_ops *ops, size_t page_size)
 {
 	assert(ops && "IO ops must not be NULL");
 	assert(ops->read && "No read operation provided");
@@ -32,14 +32,15 @@ inline void io_setup(struct io *io, struct io_ops *ops, size_t page_size)
 
 /* All offsets are given in pages, beacuse file system works with pages we
  * provide API that uses pages as bas io unit instead of bytes. */
-inline int io_read(struct io *io, void *buf, size_t size, uint64_t off)
+static inline int io_read(struct io *io, void *buf, size_t size, uint64_t off)
 {
 	struct io_ops * const ops = io->ops;
 
 	return ops->read(io, buf, size * io->page_size, off * io->page_size);
 }
 
-inline int io_write(struct io *io, const void *buf, size_t size, uint64_t off)
+static inline int io_write(struct io *io, const void *buf, size_t size,
+			uint64_t off)
 {
 	struct io_ops * const ops = io->ops;
 
@@ -47,7 +48,7 @@ inline int io_write(struct io *io, const void *buf, size_t size, uint64_t off)
 	return ops->write(io, buf, size * io->page_size, off * io->page_size);
 }
 
-inline int io_sync(struct io *io)
+static inline int io_sync(struct io *io)
 {
 	struct io_ops * const ops = io->ops;
 

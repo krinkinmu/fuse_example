@@ -56,22 +56,22 @@ struct lsm {
 	struct ctree ci[AULSMFS_MAX_DISK_TREES];
 };
 
-inline int lsm_reserve(struct lsm *lsm, uint64_t size, uint64_t *offs)
+static inline int lsm_reserve(struct lsm *lsm, uint64_t size, uint64_t *offs)
 {
 	return lsm->alloc->reserve(lsm, size, offs);
 }
 
-inline int lsm_persist(struct lsm *lsm, uint64_t offs, uint64_t size)
+static inline int lsm_persist(struct lsm *lsm, uint64_t offs, uint64_t size)
 {
 	return lsm->alloc->persist(lsm, offs, size);
 }
 
-inline void lsm_cancel(struct lsm *lsm, uint64_t offs, uint64_t size)
+static inline void lsm_cancel(struct lsm *lsm, uint64_t offs, uint64_t size)
 {
 	lsm->alloc->cancel(lsm, offs, size);
 }
 
-inline int lsm_free(struct lsm *lsm, uint64_t offs, uint64_t size)
+static inline int lsm_free(struct lsm *lsm, uint64_t offs, uint64_t size)
 {
 	return lsm->alloc->free(lsm, offs, size);
 }
