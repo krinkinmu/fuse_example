@@ -3,6 +3,7 @@
 
 #include <aulsmfs.h>
 #include <mtree.h>
+#include <ctree.h>
 #include <io.h>
 
 #include <stdint.h>
@@ -10,12 +11,6 @@
 
 
 struct lsm;
-
-struct ctree {
-	/* For now just root node offset and size, if size == 0 then tree is
-	 * empty. */
-	uint64_t offs, size;
-};
 
 struct lsm_key {
 	void *ptr;
