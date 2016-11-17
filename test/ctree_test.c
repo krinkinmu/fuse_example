@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -102,15 +103,16 @@ static int test_cmp(const struct lsm_key *l, const struct lsm_key *r)
 	return 0;
 }
 
+static const size_t KEYS = 10000000;
+
 static int create_ctree(struct ctree *ctree)
 {
-	static const size_t KEYS = 1000000;
 	struct ctree_builder builder;
 	int rc;
 
 	ctree_builder_setup(&builder, ctree->lsm);
 	for (size_t i = 0; i != KEYS; ++i) {
-		struct test_key data = { .value = i };
+		struct test_key data = { .value = 2 * i };
 		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
 		struct lsm_val val = { .ptr = NULL, .size = 0 };
 
@@ -132,6 +134,55 @@ static int create_ctree(struct ctree *ctree)
 	ctree->height = builder.height;
 	ctree_builder_release(&builder);
 	return 0;
+}
+
+static int iterate_ctree(struct ctree *ctree)
+{
+	struct ctree_iter iter;
+	struct test_key zero = { .value = 0 };
+	struct lsm_key key = { .ptr = &zero, .size = sizeof(zero) };
+	size_t count = 0;
+	size_t expected = 0;
+	int ret = -1;
+
+	ctree_iter_setup(&iter, ctree);
+	if (ctree_lower_bound(&iter, &key) < 0) {
+		puts("ctree_lower_bound failed");
+		goto out;
+	}
+
+	while (!ctree_end(&iter) && count != KEYS) {
+		struct test_key data;
+
+		ctree_key(&iter, &key);
+		if (key.size != sizeof(data)) {
+			puts("wrong key size");
+			goto out;
+		}
+
+		memcpy(&data, key.ptr, key.size);
+		if (data.value != expected) {
+			puts("wrong key value");
+			goto out;
+		}
+
+		if (ctree_next(&iter)) {
+			puts("ctree_next failed");
+			goto out;
+		}
+		expected += 2;
+		++count;
+	}
+
+	if (!ctree_end(&iter) || count != KEYS) {
+		puts("wrong number of keys");
+		goto out;
+	}
+
+	ret = 0;
+out:
+	ctree_iter_release(&iter);
+	return ret;
 }
 
 int main()
@@ -162,6 +213,8 @@ int main()
 	int ret = -1;
 
 	if (create_ctree(&ctree))
+		goto out;
+	if (iterate_ctree(&ctree))
 		goto out;
 	ret = 0;
 

@@ -55,7 +55,7 @@ aulsmfs.mkfs: $(AULSMFS_MKFS_OBJ) libaulsmfs.a
 libaulsmfs.a: $(AULSMFS_LIB_OBJ)
 	$(AR) rcs $@ $(AULSMFS_LIB_OBJ)
 
-$(AULSMFS_TEST_OBJ): %: %.c
+$(AULSMFS_TEST_OBJ): %: %.c libaulsmfs.a
 	$(CC) -I$(AULSMFS_INC) $(CFLAGS) $(TEST_CFLAGS) -MD $< $(LFLAGS) -o $@
 
 $(AULSMFS_FUSE_OBJ): %.o: %.c
