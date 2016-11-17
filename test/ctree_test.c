@@ -103,7 +103,7 @@ static int test_cmp(const struct lsm_key *l, const struct lsm_key *r)
 	return 0;
 }
 
-static const size_t KEYS = 10000000;
+static const size_t KEYS = 100000000;
 
 static int create_ctree(struct ctree *ctree)
 {
@@ -175,6 +175,34 @@ static int iterate_ctree(struct ctree *ctree)
 	}
 
 	if (!ctree_end(&iter) || count != KEYS) {
+		puts("wrong number of keys");
+		goto out;
+	}
+
+	do {
+		struct test_key data;
+
+		if (ctree_prev(&iter)) {
+			puts("ctree_prev failed");
+			goto out;
+		}
+		expected -= 2;
+		--count;
+
+		ctree_key(&iter, &key);
+		if (key.size != sizeof(data)) {
+			puts("wrong key size");
+			goto out;
+		}
+
+		memcpy(&data, key.ptr, key.size);
+		if (data.value != expected) {
+			puts("wrong key value");
+			goto out;
+		}
+	} while (!ctree_begin(&iter) && count);
+
+	if (!ctree_begin(&iter) || count) {
 		puts("wrong number of keys");
 		goto out;
 	}
