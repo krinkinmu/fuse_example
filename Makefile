@@ -18,6 +18,11 @@ AULSMFS_FUSE	:= ./fuse
 AULSMFS_MKFS	:= ./mkfs
 AULSMFS_LIB	:= ./lib
 AULSMFS_INC	:= ./inc
+AULSMFS_TEST	:= ./test
+
+AULSMFS_TEST_SRC	= $(shell find $(AULSMFS_TEST) -name '*.c')
+AULSMFS_TEST_OBJ	= $(AULSMFS_TEST_SRC:.c=)
+AULSMFS_TEST_DEP	= $(AULSMFS_TEST_SRC:.c=.d)
 
 AULSMFS_FUSE_SRC	= $(shell find $(AULSMFS_FUSE) -name '*.c')
 AULSMFS_FUSE_OBJ	= $(AULSMFS_FUSE_SRC:.c=.o)
@@ -32,11 +37,14 @@ AULSMFS_LIB_OBJ	= $(AULSMFS_LIB_SRC:.c=.o)
 AULSMFS_LIB_DEP	= $(AULSMFS_LIB_SRC:.c=.d)
 AULSMFS_LIB_GEN	= $(AULSMFS_LIB)/crc64_table.h
 
-OBJ	:= $(AULSMFS_FUSE_OBJ) $(AULSMFS_MKFS_OBJ) $(AULSMFS_LIB_OBJ)
-DEP	:= $(AULSMFS_FUSE_DEP) $(AULSMFS_MKFS_DEP) $(AULSMFS_LIB_DEP)
-GEN	:= $(AULSMFS_FUSE_GEN) $(AULSMFS_MKFS_GEN) $(AULSMFS_LIB_GEN)
+OBJ	:= $(AULSMFS_FUSE_OBJ) $(AULSMFS_MKFS_OBJ) $(AULSMFS_LIB_OBJ) \
+	$(AULSMFS_TEST_OBJ)
+DEP	:= $(AULSMFS_FUSE_DEP) $(AULSMFS_MKFS_DEP) $(AULSMFS_LIB_DEP) \
+	$(AULSMFS_TEST_DEP)
+GEN	:= $(AULSMFS_FUSE_GEN) $(AULSMFS_MKFS_GEN) $(AULSMFS_LIB_GEN) \
+	$(AULSMFS_TEST_GEN)
 
-all: gen aulsmfs.fuse aulsmfs.mkfs
+all: gen aulsmfs.fuse aulsmfs.mkfs $(AULSMFS_TEST_OBJ)
 
 aulsmfs.fuse: $(AULSMFS_FUSE_OBJ) libaulsmfs.a
 	$(CC) $^ $(LFLAGS) $(FUSE_LFLAGS) -o $@
@@ -46,6 +54,9 @@ aulsmfs.mkfs: $(AULSMFS_MKFS_OBJ) libaulsmfs.a
 
 libaulsmfs.a: $(AULSMFS_LIB_OBJ)
 	$(AR) rcs $@ $(AULSMFS_LIB_OBJ)
+
+$(AULSMFS_TEST_OBJ): %: %.c
+	$(CC) -I$(AULSMFS_INC) $(CFLAGS) $(TEST_CFLAGS) -MD $< $(LFLAGS) -o $@
 
 $(AULSMFS_FUSE_OBJ): %.o: %.c
 	$(CC) -I$(AULSMFS_INC) $(CFLAGS) $(FUSE_CFLAGS) -MD -c $< -o $@
