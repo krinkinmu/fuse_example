@@ -655,10 +655,26 @@ static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	return 0;
 }
 
+static int ctree_last(const struct ctree_iter *iter)
+{
+	for (int i = 0; i != iter->height; ++i) {
+		if (iter->pos[i] != iter->node[i]->entries - 1)
+			return 0;
+	}
+	return 1;	
+}
+
 int ctree_next(struct ctree_iter *iter)
 {
 	if (ctree_end(iter))
 		return -ENOENT;
+
+	/* Special case, end iterator points at the last entries in every
+	 * internal node and past last entry in the last leaf. */
+	if (ctree_last(iter)) {
+		iter->pos[0]++;
+		return 0;
+	}
 
 	int level;
 
@@ -676,10 +692,6 @@ int ctree_next(struct ctree_iter *iter)
 
 	if (level == 0)
 		return 0;
-
-	if (level == iter->height)
-		return -ENOENT;
-
 
 	for (; level > 0; --level) {
 		const struct ctree_node *parent = iter->node[level];
@@ -779,7 +791,10 @@ int ctree_prev(struct ctree_iter *iter)
 
 int ctree_end(const struct ctree_iter *iter)
 {
-	for (int i = 0; i != iter->height; ++i) {
+	if (iter->pos[0] != iter->node[0]->entries)
+		return 0;
+
+	for (int i = 1; i != iter->height; ++i) {
 		if (iter->pos[i] != iter->node[i]->entries)
 			return 0;
 	}
