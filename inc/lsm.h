@@ -30,11 +30,13 @@ struct lsm_alloc {
 	 *  - persist marks previously reserved range as busy (commits)
 	 * cancel just cancels reservation, for example if we allocated too
 	 * much, we can release unused space. */
-	int (*reserve)(struct lsm_alloc *, uint64_t /* size */,
+	int (*reserve)(struct lsm *, uint64_t /* size */,
 				uint64_t * /* returned offset */);
-	int (*persist)(struct lsm_alloc *, uint64_t /* offset */,
+	int (*persist)(struct lsm *, uint64_t /* offset */,
 				uint64_t /* size */);
-	void (*cancel)(struct lsm_alloc *, uint64_t /* offset */,
+	void (*cancel)(struct lsm *, uint64_t /* offset */,
+				uint64_t /* size */);
+	int (*free)(struct lsm *, uint64_t /* offset */,
 				uint64_t /* size */);
 };
 
@@ -56,17 +58,22 @@ struct lsm {
 
 inline int lsm_reserve(struct lsm *lsm, uint64_t size, uint64_t *offs)
 {
-	return lsm->alloc->reserve(lsm->alloc, size, offs);
+	return lsm->alloc->reserve(lsm, size, offs);
 }
 
 inline int lsm_persist(struct lsm *lsm, uint64_t offs, uint64_t size)
 {
-	return lsm->alloc->persist(lsm->alloc, offs, size);
+	return lsm->alloc->persist(lsm, offs, size);
 }
 
 inline void lsm_cancel(struct lsm *lsm, uint64_t offs, uint64_t size)
 {
-	lsm->alloc->cancel(lsm->alloc, offs, size);
+	lsm->alloc->cancel(lsm, offs, size);
+}
+
+inline int lsm_free(struct lsm *lsm, uint64_t offs, uint64_t size)
+{
+	return lsm->alloc->free(lsm, offs, size);
 }
 
 #endif /*__LSM_H__*/
