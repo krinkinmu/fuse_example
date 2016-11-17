@@ -655,6 +655,128 @@ static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	return 0;
 }
 
+int ctree_next(struct ctree_iter *iter)
+{
+	if (ctree_end(iter))
+		return -ENOENT;
+
+	int level;
+
+	for (level = 0; level != iter->height; ++level) {
+		struct ctree_node *node = iter->node[level];
+		size_t pos = iter->pos[level];
+
+		if (pos + 1 < node->entries) {
+			iter->pos[level] = ++pos;
+			break;
+		}
+		iter->node[level] = NULL;
+		ctree_node_destroy(node);
+	}
+
+	if (level == 0)
+		return 0;
+
+	if (level == iter->height)
+		return -ENOENT;
+
+
+	for (; level > 0; --level) {
+		const struct ctree_node *parent = iter->node[level];
+		const size_t pos = iter->pos[level];
+
+		struct aulsmfs_ptr ptr;
+		const size_t val_offs = parent->entry[pos].val_offs;
+		const size_t val_size = parent->entry[pos].val_size;
+
+		if (val_size != sizeof(ptr))
+			return -EIO;
+
+		memcpy(&ptr, parent->buf + val_offs, val_size);
+
+		struct ctree_node *child = ctree_node_create(iter->lsm);
+
+		if (!child)
+			return -ENOMEM;
+
+		child->offs = le64toh(ptr.offs);
+		child->size = le64toh(ptr.size);
+		child->csum = le64toh(ptr.csum);
+		child->level = level - 1;
+
+		const int rc = ctree_node_read(child);
+
+		if (rc < 0) {
+			ctree_node_destroy(child);
+			return rc;
+		}
+		iter->node[level - 1] = child;
+		iter->pos[level - 1] = 0;
+	}
+	return 0;
+}
+
+int ctree_prev(struct ctree_iter *iter)
+{
+	if (ctree_begin(iter))
+		return -ENOENT;
+
+	int level;
+
+	for (level = 0; level != iter->height; ++level) {
+		struct ctree_node *node = iter->node[level];
+		size_t pos = iter->pos[level];
+
+		if (pos > 0) {
+			iter->pos[level] = --pos;
+			break;
+		}
+		iter->node[level] = NULL;
+		ctree_node_destroy(node);
+	}
+
+	if (level == 0)
+		return 0;
+
+	if (level == iter->height)
+		return -ENOENT;
+
+
+	for (; level > 0; --level) {
+		const struct ctree_node *parent = iter->node[level];
+		const size_t pos = iter->pos[level];
+
+		struct aulsmfs_ptr ptr;
+		const size_t val_offs = parent->entry[pos].val_offs;
+		const size_t val_size = parent->entry[pos].val_size;
+
+		if (val_size != sizeof(ptr))
+			return -EIO;
+
+		memcpy(&ptr, parent->buf + val_offs, val_size);
+
+		struct ctree_node *child = ctree_node_create(iter->lsm);
+
+		if (!child)
+			return -ENOMEM;
+
+		child->offs = le64toh(ptr.offs);
+		child->size = le64toh(ptr.size);
+		child->csum = le64toh(ptr.csum);
+		child->level = level - 1;
+
+		const int rc = ctree_node_read(child);
+
+		if (rc < 0) {
+			ctree_node_destroy(child);
+			return rc;
+		}
+		iter->node[level - 1] = child;
+		iter->pos[level - 1] = child->entries - 1;
+	}
+	return 0;
+}
+
 int ctree_end(const struct ctree_iter *iter)
 {
 	for (int i = 0; i != iter->height; ++i) {
