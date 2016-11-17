@@ -456,7 +456,6 @@ static int __ctree_builder_append(struct ctree_builder *builder, int level,
 
 	struct ctree_node *node = ctree_builder_node(builder, level);
 
-	assert(ctree_node_can_append(lsm, node, 1, size));
 	return ctree_node_append(lsm, node, deleted, key, val);
 }
 
@@ -807,7 +806,7 @@ int ctree_end(const struct ctree_iter *iter)
 int ctree_begin(const struct ctree_iter *iter)
 {
 	for (int i = 0; i != iter->height; ++i) {
-		if (!iter->pos[i])
+		if (iter->pos[i])
 			return 0;
 	}
 	return 1;
