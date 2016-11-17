@@ -191,20 +191,26 @@ int mtree_lookup(struct mtree_iter *iter, const struct lsm_key *key)
 	return iter->node ? 1 : 0;
 }
 
-int mtree_next(struct mtree_iter *iter)
+int mtree_begin(const struct mtree_iter *iter)
 {
-	if (!iter->node)
-		iter->node = (struct mtree_node *)rb_leftmost(iter->tree);
-	else
-		iter->node = (struct mtree_node *)rb_next(&iter->node->rb);
-	return iter->node ? 1 : 0;
+	return iter->node == (struct mtree_node *)rb_leftmost(iter->tree);
 }
 
-int mtree_prev(struct mtree_iter *iter)
+int mtree_end(const struct mtree_iter *iter)
+{
+	return iter->node == NULL;
+}
+
+void mtree_next(struct mtree_iter *iter)
+{
+	if (iter->node)
+		iter->node = (struct mtree_node *)rb_next(&iter->node->rb);
+}
+
+void mtree_prev(struct mtree_iter *iter)
 {
 	if (!iter->node)
 		iter->node = (struct mtree_node *)rb_rightmost(iter->tree);
 	else
 		iter->node = (struct mtree_node *)rb_prev(&iter->node->rb);
-	return iter->node ? 1 : 0;
 }

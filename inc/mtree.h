@@ -40,14 +40,16 @@ int mtree_add(struct mtree *tree, const struct lsm_key *key,
 			const struct lsm_val *val);
 int mtree_del(struct mtree *tree, const struct lsm_key *key);
 
+/* Returns positive value if lookup found required key. */
+int mtree_lookup(struct mtree_iter *iter, const struct lsm_key *key);
+
 void mtree_lower_bound(struct mtree_iter *iter, const struct lsm_key *key);
 void mtree_upper_bound(struct mtree_iter *iter, const struct lsm_key *key);
 
-/* Returns positive value if requested key has been found or iterator moved to
- * an existing key, i. e. not moved past the last/first key in the map.
- * Currently iterators are cyclic, but you should not rely on that. */
-int mtree_lookup(struct mtree_iter *iter, const struct lsm_key *key);
-int mtree_next(struct mtree_iter *iter);
-int mtree_prev(struct mtree_iter *iter);
+int mtree_begin(const struct mtree_iter *iter);
+int mtree_end(const struct mtree_iter *iter);
+
+void mtree_next(struct mtree_iter *iter);
+void mtree_prev(struct mtree_iter *iter);
 
 #endif /*__MTREE_H__*/
