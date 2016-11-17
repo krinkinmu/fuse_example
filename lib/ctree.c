@@ -129,7 +129,7 @@ static int ctree_node_parse(struct ctree_node *node)
 
 	size_t offs = sizeof(*header);
 
-	while (offs < bytes) {
+	while (offs != bytes) {
 		struct aulsmfs_node_entry entry;
 
 		if (offs + sizeof(entry) > bytes)
@@ -531,7 +531,7 @@ void ctree_iter_release(struct ctree_iter *iter)
 
 static int ctree_iter_prepare(struct ctree_iter *iter)
 {
-	assert(!iter->node && iter->pos);
+	assert(!iter->node && !iter->pos);
 
 	if (iter->height > CTREE_ITER_INLINE_HEIGHT) {
 		iter->node = calloc(iter->height, sizeof(*iter->node));
@@ -618,8 +618,11 @@ static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 		}
 
 		pos = __ctree_node_upper_bound(node, key);
+		if (pos)
+			--pos;
+
 		iter->node[level] = node;
-		iter->pos[level] = pos ? pos - 1 : pos;
+		iter->pos[level] = pos;
 
 		struct aulsmfs_ptr ptr;
 		const size_t val_offs = node->entry[pos].val_offs;
@@ -795,7 +798,7 @@ int ctree_end(const struct ctree_iter *iter)
 		return 0;
 
 	for (int i = 1; i != iter->height; ++i) {
-		if (iter->pos[i] != iter->node[i]->entries)
+		if (iter->pos[i] != iter->node[i]->entries - 1)
 			return 0;
 	}
 	return 1;
@@ -868,4 +871,22 @@ int ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	};
 
 	return iter->lsm->cmp(&node_key, key) ? 0 : 1;
+}
+
+void ctree_key(struct ctree_iter *iter, struct lsm_key *key)
+{
+	struct ctree_node *node = iter->node[0];
+	size_t pos = iter->pos[0];
+
+	key->ptr = node->buf + node->entry[pos].key_offs;
+	key->size = node->entry[pos].key_size;
+}
+
+void ctree_val(struct ctree_iter *iter, struct lsm_val *val)
+{
+	struct ctree_node *node = iter->node[0];
+	size_t pos = iter->pos[0];
+
+	val->ptr = node->buf + node->entry[pos].val_offs;
+	val->size = node->entry[pos].val_size;
 }

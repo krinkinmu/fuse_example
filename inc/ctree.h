@@ -70,4 +70,7 @@ int ctree_end(const struct ctree_iter *iter);
 int ctree_next(struct ctree_iter *iter);
 int ctree_prev(struct ctree_iter *iter);
 
+void ctree_key(struct ctree_iter *iter, struct lsm_key *key);
+void ctree_val(struct ctree_iter *iter, struct lsm_val *val);
+
 #endif /*__CTREE_H__*/
