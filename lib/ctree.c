@@ -173,11 +173,13 @@ static int ctree_node_parse(struct ctree_node *node)
 	return 0;
 }
 
-static int ctree_node_read(struct ctree_node *node)
+static int ctree_node_read(struct ctree_node *node,
+			const struct aulsmfs_ptr *ptr, int level)
 {
 	const struct lsm *lsm = node->lsm;
-	const size_t pages = le64toh(node->ptr.size);
-	const size_t buf_size = pages * lsm->io->page_size;	
+	const size_t page_size = lsm->io->page_size;
+	const size_t pages = le64toh(ptr->size);
+	const size_t buf_size = pages * page_size;	
 	void *buf = malloc(buf_size);
 	int rc;
 
@@ -186,13 +188,15 @@ static int ctree_node_read(struct ctree_node *node)
 
 	node->buf = buf;
 	node->max_bytes = buf_size;
-	rc = io_read(lsm->io, buf, pages, le64toh(node->ptr.offs));
+	rc = io_read(lsm->io, buf, pages, le64toh(ptr->offs));
 	if (rc < 0)
 		return rc;
 
-	if (crc64(buf, buf_size) != le64toh(node->ptr.csum))
+	if (crc64(buf, buf_size) != le64toh(ptr->csum))
 		return -EIO;
 
+	node->ptr = *ptr;
+	node->level = level;
 	rc = ctree_node_parse(node);
 	if (rc < 0)
 		return rc;
@@ -609,10 +613,7 @@ static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 		if (!node)
 			return -ENOMEM;
 
-		node->ptr = ptr;
-		node->level = level;
-
-		rc = ctree_node_read(node);
+		rc = ctree_node_read(node, &ptr, level);
 		if (rc < 0) {
 			ctree_node_destroy(node);
 			return rc;
@@ -638,10 +639,7 @@ static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	if (!node)
 		return -ENOMEM;
 
-	node->ptr = ptr;
-	node->level = 0;
-
-	rc = ctree_node_read(node);
+	rc = ctree_node_read(node, &ptr, 0);
 	if (rc < 0) {
 		ctree_node_destroy(node);
 		return rc;
@@ -709,10 +707,7 @@ int ctree_next(struct ctree_iter *iter)
 		if (!child)
 			return -ENOMEM;
 
-		child->ptr = ptr;
-		child->level = level - 1;
-
-		const int rc = ctree_node_read(child);
+		const int rc = ctree_node_read(child, &ptr, level - 1);
 
 		if (rc < 0) {
 			ctree_node_destroy(child);
@@ -768,10 +763,7 @@ int ctree_prev(struct ctree_iter *iter)
 		if (!child)
 			return -ENOMEM;
 
-		child->ptr = ptr;
-		child->level = level - 1;
-
-		const int rc = ctree_node_read(child);
+		const int rc = ctree_node_read(child, &ptr, level - 1);
 
 		if (rc < 0) {
 			ctree_node_destroy(child);
