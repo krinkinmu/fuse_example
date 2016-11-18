@@ -1,6 +1,8 @@
 #ifndef __CTREE_H__
 #define __CTREE_H__
 
+#include <aulsmfs.h>
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -18,9 +20,7 @@ struct ctree_builder {
 	int max_nodes;
 
 	/* These will be set by ctree_builder_finish. */
-	uint64_t offs;
-	uint64_t size;
-	uint64_t csum;
+	struct aulsmfs_ptr ptr;
 	int height;
 };
 
@@ -34,9 +34,7 @@ int ctree_builder_finish(struct ctree_builder *builder);
 struct ctree {
 	struct lsm *lsm;
 
-	uint64_t offs;
-	uint64_t size;
-	uint64_t csum;
+	struct aulsmfs_ptr ptr;
 	int height;
 };
 
@@ -46,9 +44,7 @@ struct ctree {
 struct ctree_iter {
 	struct lsm *lsm;
 
-	uint64_t offs;
-	uint64_t size;
-	uint64_t csum;
+	struct aulsmfs_ptr ptr;
 	int height;
 
 	struct ctree_node **node;

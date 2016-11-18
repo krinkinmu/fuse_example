@@ -128,9 +128,7 @@ static int create_ctree(struct ctree *ctree)
 		ctree_builder_release(&builder);
 		return -1;
 	}
-	ctree->offs = builder.offs;
-	ctree->size = builder.size;
-	ctree->csum = builder.csum;
+	ctree->ptr = builder.ptr;
 	ctree->height = builder.height;
 	ctree_builder_release(&builder);
 	return 0;
