@@ -103,7 +103,7 @@ static int test_cmp(const struct lsm_key *l, const struct lsm_key *r)
 	return 0;
 }
 
-static const size_t KEYS = 100000000;
+static const size_t KEYS = 1000000;
 
 static int create_ctree(struct ctree *ctree)
 {
@@ -211,6 +211,52 @@ out:
 	return ret;
 }
 
+static int lookup_ctree(struct ctree *ctree)
+{
+	for (size_t i = 0; i != KEYS; ++i) {
+		struct test_key data = { .value = 2 * i };
+		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
+		struct ctree_iter iter;
+		int ret;
+
+		ctree_iter_setup(&iter, ctree);
+		ret = ctree_lookup(&iter, &key);
+		if (ret < 0) {
+			ctree_iter_release(&iter);
+			puts("lookup failed");
+			return -1;
+		}
+		if (!ret) {
+			ctree_iter_release(&iter);
+			puts("key not found");
+			return -1;
+		}
+		ctree_iter_release(&iter);
+	}
+
+	for (size_t i = 0; i != KEYS; ++i) {
+		struct test_key data = { .value = 2 * i + 1 };
+		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
+		struct ctree_iter iter;
+		int ret;
+
+		ctree_iter_setup(&iter, ctree);
+		ret = ctree_lookup(&iter, &key);
+		if (ret < 0) {
+			ctree_iter_release(&iter);
+			puts("lookup failed");
+			return -1;
+		}
+		if (ret) {
+			ctree_iter_release(&iter);
+			puts("key found");
+			return -1;
+		}
+		ctree_iter_release(&iter);
+	}
+	return 0;
+}
+
 int main()
 {
 	const int fd = open("tree", O_RDWR | O_CREAT | O_TRUNC,
@@ -241,6 +287,8 @@ int main()
 	if (create_ctree(&ctree))
 		goto out;
 	if (iterate_ctree(&ctree))
+		goto out;
+	if (lookup_ctree(&ctree))
 		goto out;
 	ret = 0;
 
