@@ -349,7 +349,51 @@ void ctree_builder_release(struct ctree_builder *builder)
 	for (int i = 0; i != builder->nodes; ++i)
 		ctree_node_destroy(builder->node[i]);
 	free(builder->node);
+	free(builder->reserved);
 	memset(builder, 0, sizeof(*builder));
+}
+
+static int ctree_builder_alloc(struct ctree_builder *builder, uint64_t size,
+			uint64_t *offs)
+{
+	if (builder->ranges == builder->max_ranges) {
+		const size_t ranges = builder->ranges
+					? builder->ranges * 2 : 16;
+		struct range *range = realloc(builder->reserved,
+					ranges * sizeof(*range));
+
+		if (!range)
+			return -ENOMEM;
+
+		builder->reserved = range;
+		builder->max_ranges = ranges;
+	}
+
+	const int rc = lsm_reserve(builder->lsm, size, offs);
+
+	if (rc < 0)
+		return rc;
+
+	if (builder->ranges) {
+		struct range *last = &builder->reserved[builder->ranges - 1];
+
+		if (last->end == *offs) {
+			last->end = *offs + size;
+			return 0;
+		}
+	}
+
+	struct range *new = &builder->reserved[builder->ranges++];
+
+	new->begin = *offs;
+	new->end = *offs + size;
+	return 0;
+}
+
+static void ctree_builder_free(struct ctree_builder *builder, uint64_t offs,
+			uint64_t size)
+{
+	lsm_cancel(builder->lsm, offs, size);
 }
 
 static int __ctree_builder_append(struct ctree_builder *builder, int level,
@@ -373,7 +417,7 @@ static int ctree_builder_flush(struct ctree_builder *builder, int level)
 	if (!node->entries)
 		return 0;
 
-	rc = lsm_reserve(lsm, size, &offs);
+	rc = ctree_builder_alloc(builder, size, &offs);
 	if (rc < 0)
 		return rc;
 
@@ -485,7 +529,7 @@ int ctree_builder_finish(struct ctree_builder *builder)
 	const size_t size = ctree_node_pages(lsm, root);
 	uint64_t offs;
 
-	rc = lsm_reserve(lsm, size, &offs);
+	rc = ctree_builder_alloc(builder, size, &offs);
 	if (rc < 0)
 		return rc;
 
@@ -497,6 +541,17 @@ int ctree_builder_finish(struct ctree_builder *builder)
 	builder->height = level + 1;
 	ctree_node_reset(root);
 	return 0;
+}
+
+void ctree_builder_cancel(struct ctree_builder *builder)
+{
+	for (size_t i = 0; i != builder->ranges; ++i) {
+		struct range *range = &builder->reserved[i];
+		const uint64_t offs = range->begin;
+		const uint64_t size = range->end - range->begin;
+
+		ctree_builder_free(builder, offs, size);
+	}
 }
 
 

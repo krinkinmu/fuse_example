@@ -12,6 +12,11 @@ struct lsm_key;
 struct lsm_val;
 struct ctree_node;
 
+struct range {
+	uint64_t begin;
+	uint64_t end;
+};
+
 struct ctree_builder {
 	struct lsm *lsm;
 
@@ -20,6 +25,10 @@ struct ctree_builder {
 	int max_nodes;
 
 	/* These will be set by ctree_builder_finish. */
+	struct range *reserved;
+	size_t ranges;
+	size_t max_ranges;
+
 	struct aulsmfs_ptr ptr;
 	int height;
 };
@@ -29,6 +38,7 @@ void ctree_builder_release(struct ctree_builder *builder);
 int ctree_builder_append(struct ctree_builder *builder,
 			const struct lsm_key *key, const struct lsm_val *val);
 int ctree_builder_finish(struct ctree_builder *builder);
+void ctree_builder_cancel(struct ctree_builder *builder);
 
 
 struct ctree {
