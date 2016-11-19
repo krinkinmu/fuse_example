@@ -48,6 +48,7 @@ void mtree_upper_bound(struct mtree_iter *iter, const struct lsm_key *key);
 
 int mtree_begin(const struct mtree_iter *iter);
 int mtree_end(const struct mtree_iter *iter);
+int mtree_equal(const struct mtree_iter *l, const struct mtree_iter *r);
 
 void mtree_next(struct mtree_iter *iter);
 void mtree_prev(struct mtree_iter *iter);

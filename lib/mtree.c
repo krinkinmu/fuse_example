@@ -201,6 +201,17 @@ int mtree_end(const struct mtree_iter *iter)
 	return iter->node == NULL;
 }
 
+int mtree_equal(const struct mtree_iter *l, const struct mtree_iter *r)
+{
+	if (l->lsm != r->lsm)
+		return 0;
+	if (l->tree != r->tree)
+		return 0;
+	if (l->node != r->node)
+		return 0;
+	return 1;
+}
+
 void mtree_next(struct mtree_iter *iter)
 {
 	if (iter->node)

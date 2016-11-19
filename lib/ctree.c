@@ -777,6 +777,9 @@ int ctree_prev(struct ctree_iter *iter)
 
 int ctree_end(const struct ctree_iter *iter)
 {
+	if (!iter->height)
+		return 1;
+
 	if (iter->pos[0] != iter->node[0]->entries)
 		return 0;
 
@@ -791,6 +794,27 @@ int ctree_begin(const struct ctree_iter *iter)
 {
 	for (int i = 0; i != iter->height; ++i) {
 		if (iter->pos[i])
+			return 0;
+	}
+	return 1;
+}
+
+int ctree_equal(const struct ctree_iter *l, const struct ctree_iter *r)
+{
+	if (memcmp(&l->ptr, &r->ptr, sizeof(l->ptr)))
+		return 0;
+
+	if (l->height != r->height)
+		return 0;
+
+	for (int i = 0; i != l->height; ++i) {
+		const struct ctree_node *left = l->node[i];
+		const struct ctree_node *right = r->node[i];
+
+		if (memcmp(&left->ptr, &right->ptr, sizeof(left->ptr)))
+			return 0;
+
+		if (l->pos[i] != r->pos[i])
 			return 0;
 	}
 	return 1;
