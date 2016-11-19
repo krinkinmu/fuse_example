@@ -12,51 +12,42 @@
 
 
 struct ctree_test_alloc {
-	struct lsm_alloc alloc;
+	struct alloc alloc;
 	uint64_t offs;
 };
 
-static int test_reserve(struct lsm *lsm, uint64_t size, uint64_t *offs)
+static int test_reserve(struct alloc *a, uint64_t size, uint64_t *offs)
 {
-	struct ctree_test_alloc *alloc = (struct ctree_test_alloc *)lsm->alloc;
+	struct ctree_test_alloc *alloc = (struct ctree_test_alloc *)a;
 
 	*offs = alloc->offs;
 	alloc->offs += size;
 	return 0;
 }
 
-static int test_persist(struct lsm *lsm, uint64_t offs, uint64_t size)
+static int test_persist(struct alloc *a, uint64_t offs, uint64_t size)
 {
-	(void) lsm;
+	(void) a;
 	(void) offs;
 	(void) size;
 	return 0;
 }
 
-static void test_cancel(struct lsm *lsm, uint64_t offs, uint64_t size)
+static int test_cancel(struct alloc *a, uint64_t offs, uint64_t size)
 {
-	(void) lsm;
-	(void) offs;
-	(void) size;
-}
-
-static int test_free(struct lsm *lsm, uint64_t offs, uint64_t size)
-{
-	(void) lsm;
+	(void) a;
 	(void) offs;
 	(void) size;
 	return 0;
 }
 
-static struct ctree_test_alloc test_alloc = {
-	.alloc = {
-		.reserve = &test_reserve,
-		.persist = &test_persist,
-		.cancel = &test_cancel,
-		.free = &test_free
-	},
-	.offs = 0
-};
+static int test_free(struct alloc *a, uint64_t offs, uint64_t size)
+{
+	(void) a;
+	(void) offs;
+	(void) size;
+	return 0;
+}
 
 struct file_io {
 	struct io io;
@@ -82,12 +73,6 @@ static int test_sync(struct io *io)
 	(void) io;
 	return 0;
 }
-
-static struct io_ops test_ops = {
-	.read = &test_read,
-	.write = &test_write,
-	.sync = &test_sync
-};
 
 struct test_key {
 	size_t value;
@@ -304,6 +289,19 @@ static int lookup_ctree(struct ctree *ctree)
 	return 0;
 }
 
+static struct io_ops test_io_ops = {
+	.read = &test_read,
+	.write = &test_write,
+	.sync = &test_sync
+};
+
+static struct alloc_ops test_alloc_ops = {
+	.reserve = &test_reserve,
+	.commit = &test_persist,
+	.cancel = &test_cancel,
+	.free = &test_free
+};
+
 int main()
 {
 	const int fd = open("tree", O_RDWR | O_CREAT | O_TRUNC,
@@ -316,30 +314,35 @@ int main()
 
 	struct file_io test_io = {
 		.io = {
-			.ops = &test_ops,
+			.ops = &test_io_ops,
 			.page_size = 4096
 		},
 		.fd = fd
 	};
 
-	struct lsm test_lsm = {
-		.io = &test_io.io,
-		.alloc = &test_alloc.alloc,
-		.cmp = &test_cmp
+	struct ctree_test_alloc test_alloc = {
+		.alloc = {
+			.ops = &test_alloc_ops
+		},
+		.offs = 0
 	};
 
-	struct ctree ctree = { .lsm = &test_lsm };
+	struct lsm test_lsm;
+	struct ctree *ctree = &test_lsm.ci[0];
 	int ret = -1;
 
-	if (create_ctree(&ctree))
+	lsm_setup(&test_lsm, &test_io.io, &test_alloc.alloc, &test_cmp);
+
+	if (create_ctree(ctree))
 		goto out;
-	if (iterate_ctree(&ctree))
+	if (iterate_ctree(ctree))
 		goto out;
-	if (lookup_ctree(&ctree))
+	if (lookup_ctree(ctree))
 		goto out;
 	ret = 0;
 
 out:
+	lsm_release(&test_lsm);
 	close(fd);
 
 	return ret;
