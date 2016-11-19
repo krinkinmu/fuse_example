@@ -21,15 +21,6 @@ struct io {
 	size_t page_size;
 };
 
-static inline void io_setup(struct io *io, struct io_ops *ops, size_t page_size)
-{
-	assert(ops && "IO ops must not be NULL");
-	assert(ops->read && "No read operation provided");
-
-	io->ops = ops;
-	io->page_size = page_size;
-}
-
 /* All offsets are given in pages, beacuse file system works with pages we
  * provide API that uses pages as bas io unit instead of bytes. */
 static inline int io_read(struct io *io, void *buf, size_t size, uint64_t off)
