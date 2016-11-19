@@ -12,11 +12,10 @@ struct mtree_node {
 	struct rb_node rb;
 	struct lsm_key key;
 	struct lsm_val val;
-	int deleted;
 };
 
-static struct mtree_node *mtree_node_create(int deleted,
-			const struct lsm_key *key, const struct lsm_val *val)
+static struct mtree_node *mtree_node_create(const struct lsm_key *key,
+			const struct lsm_val *val)
 {
 	const size_t size = key->size + val->size + sizeof(struct mtree_node);
 	struct mtree_node * const new = malloc(size);
@@ -42,8 +41,6 @@ static struct mtree_node *mtree_node_create(int deleted,
 		assert(val->ptr);
 		memcpy(new->val.ptr, val->ptr, new->val.size);
 	}
-
-	new->deleted = deleted;
 	return new;
 }
 
@@ -106,19 +103,7 @@ static void __mtree_insert(struct mtree *tree, struct mtree_node *new)
 int mtree_add(struct mtree *tree, const struct lsm_key *key,
 			const struct lsm_val *val)
 {
-	struct mtree_node *new = mtree_node_create(0, key, val);
-
-	if (!new)
-		return -ENOMEM;
-
-	__mtree_insert(tree, new);
-	return 0;
-}
-
-int mtree_del(struct mtree *tree, const struct lsm_key *key)
-{
-	static const struct lsm_val empty = { NULL, 0 };
-	struct mtree_node *new = mtree_node_create(1, key, &empty);
+	struct mtree_node *new = mtree_node_create(key, val);
 
 	if (!new)
 		return -ENOMEM;

@@ -15,7 +15,6 @@ struct ctree_entry {
 	size_t key_size;
 	size_t val_offs;
 	size_t val_size;
-	int deleted;
 };
 
 struct ctree_node {
@@ -138,7 +137,6 @@ static int ctree_node_parse(struct ctree_node *node)
 
 		const size_t key_size = le16toh(entry.key_size);
 		const size_t val_size = le16toh(entry.val_size);
-		const int deleted = entry.deleted;
 
 		if (offs + sizeof(entry) + key_size + val_size > bytes)
 			return -EIO;
@@ -159,7 +157,6 @@ static int ctree_node_parse(struct ctree_node *node)
 
 		struct ctree_entry *ptr = &node->entry[node->entries++];
 
-		ptr->deleted = deleted;
 		offs += sizeof(entry);
 
 		ptr->key_offs = offs;
@@ -225,11 +222,6 @@ static void ctree_node_val(const struct ctree_node *node, size_t pos,
 	val->size = node->entry[pos].val_size;
 }
 
-static int ctree_node_deleted(const struct ctree_node *node, size_t pos)
-{
-	return node->entry[pos].deleted;
-}
-
 static int ctree_node_can_append(const struct lsm *lsm,
 			const struct ctree_node *node,
 			size_t count, size_t size)
@@ -291,8 +283,7 @@ static int ctree_ensure_entries(const struct lsm *lsm, struct ctree_node *node,
 }
 
 static int ctree_node_append(const struct lsm *lsm, struct ctree_node *node,
-			int deleted, const struct lsm_key *key,
-			const struct lsm_val *val)
+			const struct lsm_key *key, const struct lsm_val *val)
 {
 	struct aulsmfs_node_entry nentry;
 	const size_t size = key->size + val->size + sizeof(nentry);
@@ -307,7 +298,6 @@ static int ctree_node_append(const struct lsm *lsm, struct ctree_node *node,
 
 	nentry.key_size = htole16(key->size);
 	nentry.val_size = htole16(val->size);
-	nentry.deleted = deleted ? 1 : 0;
 
 	memcpy(nentry_ptr, &nentry, sizeof(nentry));
 	memcpy(key_ptr, key->ptr, key->size);
@@ -320,8 +310,6 @@ static int ctree_node_append(const struct lsm *lsm, struct ctree_node *node,
 
 	centry->val_offs = val_ptr - node->buf;
 	centry->val_size = val->size;
-
-	centry->deleted = deleted ? 1 : 0;
 
 	node->bytes += size;
 	++node->entries;
@@ -365,8 +353,7 @@ void ctree_builder_release(struct ctree_builder *builder)
 }
 
 static int __ctree_builder_append(struct ctree_builder *builder, int level,
-			int deleted, const struct lsm_key *key,
-			const struct lsm_val *val);
+			const struct lsm_key *key, const struct lsm_val *val);
 
 static struct ctree_node *ctree_builder_node(
 			const struct ctree_builder *builder,
@@ -401,7 +388,7 @@ static int ctree_builder_flush(struct ctree_builder *builder, int level)
 	struct lsm_key key;
 
 	ctree_node_key(node, 0, &key);
-	rc = __ctree_builder_append(builder, level + 1, 0, &key, &val);
+	rc = __ctree_builder_append(builder, level + 1, &key, &val);
 	if (rc < 0)
 		return rc;
 
@@ -452,8 +439,7 @@ static int ctree_builder_can_append(const struct ctree_builder *builder,
 }
 
 static int __ctree_builder_append(struct ctree_builder *builder, int level,
-			int deleted, const struct lsm_key *key,
-			const struct lsm_val *val)
+			const struct lsm_key *key, const struct lsm_val *val)
 {
 	struct lsm * const lsm = builder->lsm;
 	const size_t size = key->size + val->size;
@@ -471,13 +457,13 @@ static int __ctree_builder_append(struct ctree_builder *builder, int level,
 
 	struct ctree_node *node = ctree_builder_node(builder, level);
 
-	return ctree_node_append(lsm, node, deleted, key, val);
+	return ctree_node_append(lsm, node, key, val);
 }
 
-int ctree_builder_append(struct ctree_builder *builder, int deleted,
+int ctree_builder_append(struct ctree_builder *builder,
 			const struct lsm_key *key, const struct lsm_val *val)
 {
-	return __ctree_builder_append(builder, 0, deleted, key, val);
+	return __ctree_builder_append(builder, 0, key, val);
 }
 
 int ctree_builder_finish(struct ctree_builder *builder)
@@ -880,9 +866,4 @@ void ctree_key(const struct ctree_iter *iter, struct lsm_key *key)
 void ctree_val(const struct ctree_iter *iter, struct lsm_val *val)
 {
 	ctree_node_val(iter->node[0], iter->pos[0], val);
-}
-
-int ctree_deleted(const struct ctree_iter *iter)
-{
-	return ctree_node_deleted(iter->node[0], iter->pos[0]);
 }

@@ -26,7 +26,7 @@ struct ctree_builder {
 
 void ctree_builder_setup(struct ctree_builder *builder, struct lsm *lsm);
 void ctree_builder_release(struct ctree_builder *builder);
-int ctree_builder_append(struct ctree_builder *builder, int deleted,
+int ctree_builder_append(struct ctree_builder *builder,
 			const struct lsm_key *key, const struct lsm_val *val);
 int ctree_builder_finish(struct ctree_builder *builder);
 

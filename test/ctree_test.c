@@ -116,7 +116,7 @@ static int create_ctree(struct ctree *ctree)
 		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
 		struct lsm_val val = { .ptr = NULL, .size = 0 };
 
-		rc = ctree_builder_append(&builder, 0, &key, &val);
+		rc = ctree_builder_append(&builder, &key, &val);
 		if (rc < 0) {
 			ctree_builder_release(&builder);
 			return -1;

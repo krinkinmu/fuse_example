@@ -36,7 +36,6 @@ struct aulsmfs_ptr {
 struct aulsmfs_node_entry {
 	le16_t key_size;
 	le16_t val_size;
-	le8_t deleted;
 } __attribute__((packed));
 
 struct aulsmfs_node_header {
