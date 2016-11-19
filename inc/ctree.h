@@ -48,6 +48,9 @@ struct ctree {
 	int height;
 };
 
+void ctree_setup(struct ctree *ctree, struct lsm *lsm);
+void ctree_release(struct ctree *ctree);
+
 
 #define CTREE_ITER_INLINE_HEIGHT	16
 

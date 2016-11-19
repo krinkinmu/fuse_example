@@ -555,6 +555,18 @@ void ctree_builder_cancel(struct ctree_builder *builder)
 }
 
 
+void ctree_setup(struct ctree *ctree, struct lsm *lsm)
+{
+	memset(ctree, 0, sizeof(*ctree));
+	ctree->lsm = lsm;
+}
+
+void ctree_release(struct ctree *ctree)
+{
+	memset(ctree, 0, sizeof(*ctree));
+}
+
+
 void ctree_iter_setup(struct ctree_iter *iter, struct ctree *ctree)
 {
 	memset(iter, 0, sizeof(*iter));
