@@ -650,6 +650,18 @@ static size_t __ctree_node_upper_bound(const struct ctree_node *node,
 	return node->entries;
 }
 
+static int ctree_node_ptr(const struct ctree_node *node, size_t pos,
+			struct aulsmfs_ptr *ptr)
+{
+	struct lsm_val val;
+
+	ctree_node_val(node, pos, &val);
+	if (val.size != sizeof(*ptr))
+		return -ENOBUFS;
+	memcpy(ptr, val.ptr, sizeof(*ptr));
+	return 0;
+}
+
 static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 {
 	int rc = ctree_iter_prepare(iter);
@@ -679,13 +691,8 @@ static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 		iter->node[level] = node;
 		iter->pos[level] = pos;
 
-		struct lsm_val val;
-
-		ctree_node_val(node, pos, &val);
-		if (val.size != sizeof(ptr))
+		if (ctree_node_ptr(node, pos, &ptr) < 0)
 			return -EIO;
-
-		memcpy(&ptr, val.ptr, val.size);
 	}
 
 	node = ctree_node_create(iter->lsm);
@@ -745,15 +752,10 @@ int ctree_next(struct ctree_iter *iter)
 	for (; level > 0; --level) {
 		const struct ctree_node *parent = iter->node[level];
 		const size_t pos = iter->pos[level];
-
 		struct aulsmfs_ptr ptr;
-		struct lsm_val val;
 
-		ctree_node_val(parent, pos, &val);
-		if (val.size != sizeof(ptr))
+		if (ctree_node_ptr(parent, pos, &ptr) < 0)
 			return -EIO;
-
-		memcpy(&ptr, val.ptr, val.size);
 
 		struct ctree_node *child = ctree_node_create(iter->lsm);
 
@@ -801,15 +803,10 @@ int ctree_prev(struct ctree_iter *iter)
 	for (; level > 0; --level) {
 		const struct ctree_node *parent = iter->node[level];
 		const size_t pos = iter->pos[level];
-
 		struct aulsmfs_ptr ptr;
-		struct lsm_val val;
 
-		ctree_node_val(parent, pos, &val);
-		if (val.size != sizeof(ptr))
+		if (ctree_node_ptr(parent, pos, &ptr) < 0)
 			return -EIO;
-
-		memcpy(&ptr, val.ptr, val.size);
 
 		struct ctree_node *child = ctree_node_create(iter->lsm);
 
