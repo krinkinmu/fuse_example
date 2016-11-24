@@ -166,6 +166,11 @@ void mtree_upper_bound(struct mtree_iter *iter, const struct lsm_key *key)
 	iter->node = upper;
 }
 
+void mtree_begin(struct mtree_iter *iter)
+{
+	iter->node = (struct mtree_node *)rb_leftmost(iter->tree);
+}
+
 int mtree_lookup(struct mtree_iter *iter, const struct lsm_key *key)
 {
 	const struct lsm * const lsm = iter->lsm;

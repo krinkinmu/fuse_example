@@ -44,6 +44,7 @@ int mtree_lookup(struct mtree_iter *iter, const struct lsm_key *key);
 
 void mtree_lower_bound(struct mtree_iter *iter, const struct lsm_key *key);
 void mtree_upper_bound(struct mtree_iter *iter, const struct lsm_key *key);
+void mtree_begin(struct mtree_iter *iter);
 
 int mtree_is_begin(const struct mtree_iter *iter);
 int mtree_is_end(const struct mtree_iter *iter);
