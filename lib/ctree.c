@@ -566,6 +566,24 @@ void ctree_release(struct ctree *ctree)
 	memset(ctree, 0, sizeof(*ctree));
 }
 
+void ctree_parse(struct ctree *ctree, const struct aulsmfs_ctree *ondisk)
+{
+	le16_t height;
+
+	/* Teoritically ondisk might be unaligned, thus this mess. */
+	memcpy(&ctree->ptr, &ondisk->ptr, sizeof(ctree->ptr));
+	memcpy(&height, &ondisk->height, sizeof(height));
+	ctree->height = le16toh(height);
+}
+
+void ctree_dump(const struct ctree *ctree, struct aulsmfs_ctree *ondisk)
+{
+	const le16_t height = htole16(ctree->height);
+
+	memcpy(&ondisk->ptr, &ctree->ptr, sizeof(ctree->ptr));
+	memcpy(&ondisk->height, &height, sizeof(height));
+}
+
 
 void ctree_iter_setup(struct ctree_iter *iter, struct ctree *ctree)
 {
