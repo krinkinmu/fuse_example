@@ -38,3 +38,9 @@ void lsm_dump(const struct lsm *lsm, struct aulsmfs_tree *ondisk)
 	for (int i = 0; i != AULSMFS_MAX_DISK_TREES; ++i)
 		ctree_dump(&lsm->ci[i], &ondisk->ci[i]);
 }
+
+int lsm_add(struct lsm *lsm, const struct lsm_key *key,
+			const struct lsm_val *val)
+{
+	return mtree_add(&lsm->c0, key, val);
+}
