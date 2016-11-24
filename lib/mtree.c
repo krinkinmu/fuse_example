@@ -73,6 +73,14 @@ void mtree_release(struct mtree *tree)
 	tree->tree.root = NULL;
 }
 
+void mtree_swap(struct mtree *l, struct mtree *r)
+{
+	const struct mtree tmp = *l;
+
+	*l = *r;
+	*r = tmp;
+}
+
 static void __mtree_insert(struct mtree *tree, struct mtree_node *new)
 {
 	struct lsm *const lsm = tree->lsm;
