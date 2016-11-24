@@ -176,17 +176,17 @@ int mtree_lookup(struct mtree_iter *iter, const struct lsm_key *key)
 	return iter->node ? 1 : 0;
 }
 
-int mtree_begin(const struct mtree_iter *iter)
+int mtree_is_begin(const struct mtree_iter *iter)
 {
 	return iter->node == (struct mtree_node *)rb_leftmost(iter->tree);
 }
 
-int mtree_end(const struct mtree_iter *iter)
+int mtree_is_end(const struct mtree_iter *iter)
 {
 	return iter->node == NULL;
 }
 
-int mtree_equal(const struct mtree_iter *l, const struct mtree_iter *r)
+int mtree_are_equal(const struct mtree_iter *l, const struct mtree_iter *r)
 {
 	if (l->lsm != r->lsm)
 		return 0;
