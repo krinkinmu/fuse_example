@@ -566,6 +566,11 @@ void ctree_release(struct ctree *ctree)
 	memset(ctree, 0, sizeof(*ctree));
 }
 
+int ctree_is_empty(const struct ctree *ctree)
+{
+	return ctree->height ? 0 : 1;
+}
+
 void ctree_swap(struct ctree *l, struct ctree *r)
 {
 	const struct ctree tmp = *l;
