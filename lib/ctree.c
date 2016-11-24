@@ -729,7 +729,7 @@ static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	return 0;
 }
 
-static int ctree_last(const struct ctree_iter *iter)
+static int ctree_is_last(const struct ctree_iter *iter)
 {
 	for (int i = 0; i != iter->height; ++i) {
 		if (iter->pos[i] != iter->node[i]->entries - 1)
@@ -740,12 +740,12 @@ static int ctree_last(const struct ctree_iter *iter)
 
 int ctree_next(struct ctree_iter *iter)
 {
-	if (ctree_end(iter))
+	if (ctree_is_end(iter))
 		return -ENOENT;
 
 	/* Special case, end iterator points at the last entries in every
 	 * internal node and past last entry in the last leaf. */
-	if (ctree_last(iter)) {
+	if (ctree_is_last(iter)) {
 		iter->pos[0]++;
 		return 0;
 	}
@@ -794,7 +794,7 @@ int ctree_next(struct ctree_iter *iter)
 
 int ctree_prev(struct ctree_iter *iter)
 {
-	if (ctree_begin(iter))
+	if (ctree_is_begin(iter))
 		return -ENOENT;
 
 	int level;
@@ -843,7 +843,7 @@ int ctree_prev(struct ctree_iter *iter)
 	return 0;
 }
 
-int ctree_end(const struct ctree_iter *iter)
+int ctree_is_end(const struct ctree_iter *iter)
 {
 	if (!iter->height)
 		return 1;
@@ -858,7 +858,7 @@ int ctree_end(const struct ctree_iter *iter)
 	return 1;
 }
 
-int ctree_begin(const struct ctree_iter *iter)
+int ctree_is_begin(const struct ctree_iter *iter)
 {
 	for (int i = 0; i != iter->height; ++i) {
 		if (iter->pos[i])
@@ -867,7 +867,7 @@ int ctree_begin(const struct ctree_iter *iter)
 	return 1;
 }
 
-int ctree_equal(const struct ctree_iter *l, const struct ctree_iter *r)
+int ctree_are_equal(const struct ctree_iter *l, const struct ctree_iter *r)
 {
 	if (memcmp(&l->ptr, &r->ptr, sizeof(l->ptr)))
 		return 0;
@@ -896,7 +896,7 @@ int ctree_lower_bound(struct ctree_iter *iter, const struct lsm_key *key)
 		return rc;
 
 	if (iter->pos[0] == iter->node[0]->entries) {
-		if (ctree_end(iter))
+		if (ctree_is_end(iter))
 			return 0;
 		rc = ctree_next(iter);
 		if (rc < 0)
@@ -912,7 +912,7 @@ int ctree_upper_bound(struct ctree_iter *iter, const struct lsm_key *key)
 	if (rc < 0)
 		return rc;
 
-	if (ctree_end(iter))
+	if (ctree_is_end(iter))
 		return 0;
 
 	struct lsm_key node_key;
@@ -931,7 +931,7 @@ int ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	if (rc < 0)
 		return rc;
 
-	if (ctree_end(iter))
+	if (ctree_is_end(iter))
 		return 0;
 
 	struct lsm_key node_key;
@@ -940,7 +940,7 @@ int ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	return iter->lsm->cmp(&node_key, key) ? 0 : 1;
 }
 
-int ctree_first(struct ctree_iter *iter)
+int ctree_begin(struct ctree_iter *iter)
 {
 	int rc = ctree_iter_prepare(iter);
 

@@ -134,7 +134,7 @@ static int iterate_ctree(struct ctree *ctree)
 		goto out;
 	}
 
-	while (!ctree_end(&iter) && count != KEYS) {
+	while (!ctree_is_end(&iter) && count != KEYS) {
 		struct test_key data;
 
 		ctree_key(&iter, &key);
@@ -157,7 +157,7 @@ static int iterate_ctree(struct ctree *ctree)
 		++count;
 	}
 
-	if (!ctree_end(&iter) || count != KEYS) {
+	if (!ctree_is_end(&iter) || count != KEYS) {
 		puts("wrong number of keys");
 		goto out;
 	}
