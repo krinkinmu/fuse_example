@@ -73,6 +73,11 @@ void mtree_release(struct mtree *tree)
 	tree->tree.root = NULL;
 }
 
+int mtree_is_empty(const struct mtree *tree)
+{
+	return tree->tree.root ? 0 : 1;
+}
+
 void mtree_swap(struct mtree *l, struct mtree *r)
 {
 	const struct mtree tmp = *l;
