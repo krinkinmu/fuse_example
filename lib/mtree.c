@@ -228,3 +228,13 @@ void mtree_prev(struct mtree_iter *iter)
 	else
 		iter->node = (struct mtree_node *)rb_prev(&iter->node->rb);
 }
+
+void mtree_key(const struct mtree_iter *iter, struct lsm_key *key)
+{
+	*key = iter->node->key;
+}
+
+void mtree_val(const struct mtree_iter *iter, struct lsm_val *val)
+{
+	*val = iter->node->val;
+}

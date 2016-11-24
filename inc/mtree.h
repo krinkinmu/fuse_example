@@ -55,4 +55,7 @@ int mtree_are_equal(const struct mtree_iter *l, const struct mtree_iter *r);
 void mtree_next(struct mtree_iter *iter);
 void mtree_prev(struct mtree_iter *iter);
 
+void mtree_key(const struct mtree_iter *iter, struct lsm_key *key);
+void mtree_val(const struct mtree_iter *iter, struct lsm_val *val);
+
 #endif /*__MTREE_H__*/
