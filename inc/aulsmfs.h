@@ -47,7 +47,7 @@ struct aulsmfs_node_header {
 
 struct aulsmfs_ctree {
 	struct aulsmfs_ptr ptr;
-	le16_t hight;
+	le16_t height;
 };
 
 struct aulsmfs_tree {
