@@ -566,6 +566,14 @@ void ctree_release(struct ctree *ctree)
 	memset(ctree, 0, sizeof(*ctree));
 }
 
+void ctree_swap(struct ctree *l, struct ctree *r)
+{
+	const struct ctree tmp = *l;
+
+	*l = *r;
+	*r = tmp;
+}
+
 void ctree_parse(struct ctree *ctree, const struct aulsmfs_ctree *ondisk)
 {
 	le16_t height;
