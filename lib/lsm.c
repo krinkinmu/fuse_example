@@ -27,4 +27,14 @@ void lsm_release(struct lsm *lsm)
 	memset(lsm, 0, sizeof(*lsm));
 }
 
+void lsm_parse(struct lsm *lsm, const struct aulsmfs_tree *ondisk)
+{
+	for (int i = 0; i != AULSMFS_MAX_DISK_TREES; ++i)
+		ctree_parse(&lsm->ci[i], &ondisk->ci[i]);
+}
 
+void lsm_dump(const struct lsm *lsm, struct aulsmfs_tree *ondisk)
+{
+	for (int i = 0; i != AULSMFS_MAX_DISK_TREES; ++i)
+		ctree_dump(&lsm->ci[i], &ondisk->ci[i]);
+}

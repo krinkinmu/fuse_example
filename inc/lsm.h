@@ -31,8 +31,6 @@ struct lsm {
 	/* Key comparision function. */
 	int (*cmp)(const struct lsm_key *, const struct lsm_key *);
 
-	struct aulsmfs_ptr ptr;
-
 	/* Two in memory trees, all inserts/deletes go to c0, c1 is a temporary
 	 * tree that contains fixed state of c0 during merge. */
 	struct mtree c0;
@@ -66,8 +64,8 @@ void lsm_setup(struct lsm *lsm, struct io *io, struct alloc *alloc,
 		int (*cmp)(const struct lsm_key *, const struct lsm_key *));
 void lsm_release(struct lsm *lsm);
 
-int lsm_read(struct lsm *lsm, struct aulsmfs_ptr ptr);
-int lsm_write(struct lsm *lsm);
+void lsm_parse(struct lsm *lsm, const struct aulsmfs_tree *ondisk);
+void lsm_dump(const struct lsm *lsm, struct aulsmfs_tree *ondisk);
 
 int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 			const struct lsm_val *val);
