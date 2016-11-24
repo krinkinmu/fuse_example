@@ -940,6 +940,38 @@ int ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	return iter->lsm->cmp(&node_key, key) ? 0 : 1;
 }
 
+int ctree_first(struct ctree_iter *iter)
+{
+	int rc = ctree_iter_prepare(iter);
+
+	if (rc < 0)
+		return rc;
+
+	struct ctree_node *node;
+	const size_t pos = 0;
+	struct aulsmfs_ptr ptr = iter->ptr;
+
+	for (int level = iter->height; level; --level) {
+		node = ctree_node_create(iter->lsm);
+		if (!node)
+			return -ENOMEM;
+
+		rc = ctree_node_read(node, &ptr, level);
+		if (rc < 0) {
+			ctree_node_destroy(node);
+			return rc;
+		}
+
+		iter->node[level] = node;
+		iter->pos[level] = pos;
+
+		if (ctree_node_ptr(node, pos, &ptr) < 0)
+			return -EIO;
+	}
+	return 0;
+
+}
+
 void ctree_key(const struct ctree_iter *iter, struct lsm_key *key)
 {
 	ctree_node_key(iter->node[0], iter->pos[0], key);

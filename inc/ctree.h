@@ -75,6 +75,7 @@ void ctree_iter_release(struct ctree_iter *iter);
 int ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key);
 int ctree_lower_bound(struct ctree_iter *iter, const struct lsm_key *key);
 int ctree_upper_bound(struct ctree_iter *iter, const struct lsm_key *key);
+int ctree_first(struct ctree_iter *iter);
 
 int ctree_begin(const struct ctree_iter *iter);
 int ctree_end(const struct ctree_iter *iter);
