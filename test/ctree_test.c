@@ -120,7 +120,7 @@ static int create_ctree(struct ctree *ctree)
 	return 0;
 }
 
-static int iterate_ctree(struct ctree *ctree)
+static int iterate_ctree_forward(struct ctree *ctree)
 {
 	struct ctree_iter iter;
 	struct test_key zero = { .value = 0 };
@@ -130,8 +130,8 @@ static int iterate_ctree(struct ctree *ctree)
 	int ret = -1;
 
 	ctree_iter_setup(&iter, ctree);
-	if (ctree_lower_bound(&iter, &key) < 0) {
-		puts("ctree_lower_bound failed");
+	if (ctree_begin(&iter) < 0) {
+		puts("ctree_begin failed");
 		goto out;
 	}
 
@@ -196,6 +196,92 @@ static int iterate_ctree(struct ctree *ctree)
 	} while (count);
 
 	if (ctree_prev(&iter, NULL, NULL) != -ENOENT || count) {
+		puts("wrong number of keys");
+		goto out;
+	}
+
+	ret = 0;
+out:
+	ctree_iter_release(&iter);
+	return ret;
+}
+
+static int iterate_ctree_backward(struct ctree *ctree)
+{
+	struct ctree_iter iter;
+	struct test_key zero = { .value = 0 };
+	struct lsm_key key = { .ptr = &zero, .size = sizeof(zero) };
+	size_t count = KEYS;
+	size_t expected = (KEYS - 1) * 2;
+	int ret = -1;
+
+	ctree_iter_setup(&iter, ctree);
+	if (ctree_end(&iter) < 0) {
+		puts("ctree_end failed");
+		goto out;
+	}
+
+	while (count) {
+		struct test_key data;
+		int rc;
+
+		rc = ctree_prev(&iter, &key, NULL);
+		if (rc == -ENOENT)
+			break;
+
+		if (rc < 0) {
+			puts("ctree_prev failed");
+			goto out;
+		}
+
+		if (key.size != sizeof(data)) {
+			puts("wrong key size");
+			goto out;
+		}
+
+		memcpy(&data, key.ptr, key.size);
+		if (data.value != expected) {
+			puts("wrong key value");
+			goto out;
+		}
+
+		expected -= 2;
+		--count;
+	}
+
+	if (ctree_prev(&iter, NULL, NULL) != -ENOENT || count) {
+		puts("wrong number of keys");
+		goto out;
+	}
+
+	do {
+		struct test_key data;
+		int rc;
+
+		rc = ctree_next(&iter, &key, NULL);
+		if (rc == -ENOENT)
+			break;
+
+		if (rc) {
+			puts("ctree_next failed");
+			goto out;
+		}
+		expected += 2;
+		++count;
+
+		if (key.size != sizeof(data)) {
+			puts("wrong key size");
+			goto out;
+		}
+
+		memcpy(&data, key.ptr, key.size);
+		if (data.value != expected) {
+			puts("wrong key value");
+			goto out;
+		}
+	} while (count != KEYS);
+
+	if (ctree_next(&iter, NULL, NULL) != -ENOENT || count != KEYS) {
 		puts("wrong number of keys");
 		goto out;
 	}
@@ -357,7 +443,9 @@ int main()
 
 	if (create_ctree(ctree))
 		goto out;
-	if (iterate_ctree(ctree))
+	if (iterate_ctree_forward(ctree))
+		goto out;
+	if (iterate_ctree_backward(ctree))
 		goto out;
 	if (lookup_ctree(ctree))
 		goto out;
