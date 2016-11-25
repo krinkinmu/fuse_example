@@ -67,6 +67,9 @@ struct ctree_iter {
 	struct ctree_node **node;
 	size_t *pos;
 
+	void *buf;
+	size_t buf_size;
+
 	struct ctree_node *_node[CTREE_ITER_INLINE_HEIGHT];
 	size_t _pos[CTREE_ITER_INLINE_HEIGHT];
 };
@@ -78,15 +81,11 @@ int ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key);
 int ctree_lower_bound(struct ctree_iter *iter, const struct lsm_key *key);
 int ctree_upper_bound(struct ctree_iter *iter, const struct lsm_key *key);
 int ctree_begin(struct ctree_iter *iter);
+int ctree_end(struct ctree_iter *iter);
 
-int ctree_is_begin(const struct ctree_iter *iter);
-int ctree_is_end(const struct ctree_iter *iter);
-int ctree_are_equal(const struct ctree_iter *l, const struct ctree_iter *r);
-int ctree_next(struct ctree_iter *iter);
-int ctree_prev(struct ctree_iter *iter);
-
-void ctree_key(const struct ctree_iter *iter, struct lsm_key *key);
-void ctree_val(const struct ctree_iter *iter, struct lsm_val *val);
-int ctree_deleted(const struct ctree_iter *iter);
+int ctree_next(struct ctree_iter *iter, struct lsm_key *key,
+			struct lsm_val *val);
+int ctree_prev(struct ctree_iter *iter, struct lsm_key *key,
+			struct lsm_val *val);
 
 #endif /*__CTREE_H__*/

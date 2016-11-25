@@ -8,6 +8,7 @@
 
 #include <string.h>
 #include <stdint.h>
+#include <errno.h>
 #include <stdio.h>
 
 
@@ -134,10 +135,19 @@ static int iterate_ctree(struct ctree *ctree)
 		goto out;
 	}
 
-	while (!ctree_is_end(&iter) && count != KEYS) {
+	while (count != KEYS) {
 		struct test_key data;
+		int rc;
 
-		ctree_key(&iter, &key);
+		rc = ctree_next(&iter, &key, NULL);
+		if (rc == -ENOENT)
+			break;
+
+		if (rc < 0) {
+			puts("ctree_next failed");
+			goto out;
+		}
+
 		if (key.size != sizeof(data)) {
 			puts("wrong key size");
 			goto out;
@@ -149,30 +159,30 @@ static int iterate_ctree(struct ctree *ctree)
 			goto out;
 		}
 
-		if (ctree_next(&iter)) {
-			puts("ctree_next failed");
-			goto out;
-		}
 		expected += 2;
 		++count;
 	}
 
-	if (!ctree_is_end(&iter) || count != KEYS) {
+	if (ctree_next(&iter, NULL, NULL) != -ENOENT || count != KEYS) {
 		puts("wrong number of keys");
 		goto out;
 	}
 
 	do {
 		struct test_key data;
+		int rc;
 
-		if (ctree_prev(&iter)) {
+		rc = ctree_prev(&iter, &key, NULL);
+		if (rc == -ENOENT)
+			break;
+
+		if (rc) {
 			puts("ctree_prev failed");
 			goto out;
 		}
 		expected -= 2;
 		--count;
 
-		ctree_key(&iter, &key);
 		if (key.size != sizeof(data)) {
 			puts("wrong key size");
 			goto out;
@@ -183,9 +193,9 @@ static int iterate_ctree(struct ctree *ctree)
 			puts("wrong key value");
 			goto out;
 		}
-	} while (!ctree_begin(&iter) && count);
+	} while (count);
 
-	if (!ctree_begin(&iter) || count) {
+	if (ctree_prev(&iter, NULL, NULL) != -ENOENT || count) {
 		puts("wrong number of keys");
 		goto out;
 	}
@@ -216,7 +226,11 @@ static int lookup_ctree(struct ctree *ctree)
 			puts("key not found");
 			return -1;
 		}
-		ctree_key(&iter, &key);
+		if (ctree_next(&iter, &key, NULL) < 0) {
+			ctree_iter_release(&iter);
+			puts("ctree_next failed to get key");
+			return -1;
+		}
 		if (key.size != sizeof(data)) {
 			ctree_iter_release(&iter);
 			puts("wrong key size");
@@ -244,7 +258,11 @@ static int lookup_ctree(struct ctree *ctree)
 			puts("lookup failed");
 			return -1;
 		}
-		ctree_key(&iter, &key);
+		if (ctree_next(&iter, &key, NULL) < 0) {
+			ctree_iter_release(&iter);
+			puts("ctree_next failed to get key");
+			return -1;
+		}
 		if (key.size != sizeof(data)) {
 			ctree_iter_release(&iter);
 			puts("wrong key size");
@@ -272,7 +290,11 @@ static int lookup_ctree(struct ctree *ctree)
 			puts("lookup failed");
 			return -1;
 		}
-		ctree_key(&iter, &key);
+		if (ctree_next(&iter, &key, NULL) < 0) {
+			ctree_iter_release(&iter);
+			puts("ctree_next failed to get key");
+			return -1;
+		}
 		if (key.size != sizeof(data)) {
 			ctree_iter_release(&iter);
 			puts("wrong key size");
