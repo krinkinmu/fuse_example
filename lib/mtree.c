@@ -184,6 +184,11 @@ void mtree_begin(struct mtree_iter *iter)
 	iter->node = (struct mtree_node *)rb_leftmost(iter->tree);
 }
 
+void mtree_end(struct mtree_iter *iter)
+{
+	iter->node = NULL;
+}
+
 int mtree_lookup(struct mtree_iter *iter, const struct lsm_key *key)
 {
 	const struct lsm * const lsm = iter->lsm;
@@ -194,47 +199,29 @@ int mtree_lookup(struct mtree_iter *iter, const struct lsm_key *key)
 	return iter->node ? 1 : 0;
 }
 
-int mtree_is_begin(const struct mtree_iter *iter)
+int mtree_next(struct mtree_iter *iter, struct lsm_key *key,
+			struct lsm_val *val)
 {
-	return iter->node == (struct mtree_node *)rb_leftmost(iter->tree);
+	if (!iter->node)
+		return -ENOENT;
+
+	*key = iter->node->key;
+	*val = iter->node->val;
+	iter->node = (struct mtree_node *)rb_next(&iter->node->rb);
+	return 0;
 }
 
-int mtree_is_end(const struct mtree_iter *iter)
+int mtree_prev(struct mtree_iter *iter, struct lsm_key *key,
+			struct lsm_val *val)
 {
-	return iter->node == NULL;
-}
+	if (iter->node == (const struct mtree_node *)rb_leftmost(iter->tree))
+		return -ENOENT;
 
-int mtree_are_equal(const struct mtree_iter *l, const struct mtree_iter *r)
-{
-	if (l->lsm != r->lsm)
-		return 0;
-	if (l->tree != r->tree)
-		return 0;
-	if (l->node != r->node)
-		return 0;
-	return 1;
-}
-
-void mtree_next(struct mtree_iter *iter)
-{
-	if (iter->node)
-		iter->node = (struct mtree_node *)rb_next(&iter->node->rb);
-}
-
-void mtree_prev(struct mtree_iter *iter)
-{
 	if (!iter->node)
 		iter->node = (struct mtree_node *)rb_rightmost(iter->tree);
 	else
 		iter->node = (struct mtree_node *)rb_prev(&iter->node->rb);
-}
-
-void mtree_key(const struct mtree_iter *iter, struct lsm_key *key)
-{
 	*key = iter->node->key;
-}
-
-void mtree_val(const struct mtree_iter *iter, struct lsm_val *val)
-{
 	*val = iter->node->val;
+	return 0;
 }
