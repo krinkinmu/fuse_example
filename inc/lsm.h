@@ -2,6 +2,7 @@
 #define __LSM_H__
 
 #include <aulsmfs.h>
+#include <lsm_fwd.h>
 #include <mtree.h>
 #include <ctree.h>
 #include <alloc.h>
@@ -9,19 +10,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-
-
-struct lsm;
-
-struct lsm_key {
-	void *ptr;
-	size_t size;
-};
-
-struct lsm_val {
-	void *ptr;
-	size_t size;
-};
 
 
 struct lsm {
