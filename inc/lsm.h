@@ -58,4 +58,20 @@ void lsm_dump(const struct lsm *lsm, struct aulsmfs_tree *ondisk);
 int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 			const struct lsm_val *val);
 
+
+struct lsm_iter {
+	struct lsm *lsm;
+	int from, to;
+
+	struct mtree_iter it0;
+	struct mtree_iter it1;
+	struct ctree_iter iti[AULSMFS_MAX_DISK_TREES];
+
+	struct lsm_key keyi[AULSMFS_MAX_DISK_TREES + 2];
+	struct lsm_val vali[AULSMFS_MAX_DISK_TREES + 2];
+};
+
+void lsm_iter_setup(struct lsm_iter *iter, struct lsm *lsm);
+void lsm_iter_release(struct lsm_iter *iter);
+
 #endif /*__LSM_H__*/

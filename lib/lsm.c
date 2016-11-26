@@ -44,3 +44,25 @@ int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 {
 	return mtree_add(&lsm->c0, key, val);
 }
+
+void lsm_iter_setup(struct lsm_iter *iter, struct lsm *lsm)
+{
+	memset(iter, 0, sizeof(*iter));
+	iter->lsm = lsm;
+
+	mtree_iter_setup(&iter->it0, &lsm->c0);
+	mtree_iter_setup(&iter->it1, &lsm->c1);
+
+	for (int i = 0; i != AULSMFS_MAX_DISK_TREES; ++i)
+		ctree_iter_setup(&iter->iti[i], &lsm->ci[i]);
+}
+
+void lsm_iter_release(struct lsm_iter *iter)
+{
+	for (int i = 0; i != AULSMFS_MAX_DISK_TREES; ++i)
+		ctree_iter_release(&iter->iti[i]);
+
+	mtree_iter_release(&iter->it1);
+	mtree_iter_release(&iter->it0);
+	memset(iter, 0, sizeof(*iter));
+}
