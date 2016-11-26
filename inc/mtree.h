@@ -50,14 +50,9 @@ void mtree_upper_bound(struct mtree_iter *iter, const struct lsm_key *key);
 void mtree_begin(struct mtree_iter *iter);
 void mtree_end(struct mtree_iter *iter);
 
-/* Extracts key and value from current iterator position and then moves
- * forward. If iterator points beyond the end returns -ENOENT. */
-int mtree_next(struct mtree_iter *iter, struct lsm_key *key,
-			struct lsm_val *val);
-
-/* Moves iterator backward and then extracts key and value. If iterator
- * points at the begining of the collection returns -ENOENT. */
-int mtree_prev(struct mtree_iter *iter, struct lsm_key *key,
-			struct lsm_val *val);
+int mtree_next(struct mtree_iter *iter);
+int mtree_prev(struct mtree_iter *iter);
+int mtree_key(const struct mtree_iter *iter, struct lsm_key *key);
+int mtree_val(const struct mtree_iter *iter, struct lsm_val *val);
 
 #endif /*__MTREE_H__*/
