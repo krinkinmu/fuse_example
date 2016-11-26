@@ -626,8 +626,10 @@ void ctree_iter_release(struct ctree_iter *iter)
 
 static int ctree_iter_prepare(struct ctree_iter *iter)
 {
-	assert(!iter->node && !iter->pos);
+	if (iter->node && iter->pos)
+		return 0;
 
+	assert(!iter->node && !iter->pos);
 	if (iter->height > CTREE_ITER_INLINE_HEIGHT) {
 		iter->node = calloc(iter->height, sizeof(*iter->node));
 		if (!iter->node)
@@ -695,6 +697,28 @@ static int ctree_node_ptr(const struct ctree_node *node, size_t pos,
 	return 0;
 }
 
+static int __ctree_get_node(struct ctree_iter *iter,
+			const struct aulsmfs_ptr *ptr, int level)
+{
+	struct ctree_node *node;
+	int rc;
+
+	if (!iter->node[level] || memcmp(&iter->node[level]->ptr, ptr,
+				sizeof(*ptr))) {
+		node = ctree_node_create(iter->lsm);
+		if (!node)
+			return -ENOMEM;
+		rc = ctree_node_read(node, ptr, level);
+		if (rc < 0) {
+			ctree_node_destroy(node);
+			return rc;
+		}
+		ctree_node_destroy(iter->node[level]);
+		iter->node[level] = node;
+	}
+	return 0;
+}
+
 static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 {
 	int rc = ctree_iter_prepare(iter);
@@ -707,39 +731,25 @@ static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	struct aulsmfs_ptr ptr = iter->ptr;
 
 	for (int level = iter->height - 1; level; --level) {
-		node = ctree_node_create(iter->lsm);
-		if (!node)
-			return -ENOMEM;
-
-		rc = ctree_node_read(node, &ptr, level);
-		if (rc < 0) {
-			ctree_node_destroy(node);
+		rc = __ctree_get_node(iter, &ptr, level);
+		if (rc < 0)
 			return rc;
-		}
 
+		node = iter->node[level];
 		pos = __ctree_node_upper_bound(node, key);
 		if (pos)
 			--pos;
-
-		iter->node[level] = node;
 		iter->pos[level] = pos;
-
 		if (ctree_node_ptr(node, pos, &ptr) < 0)
 			return -EIO;
 	}
 
-	node = ctree_node_create(iter->lsm);
-	if (!node)
-		return -ENOMEM;
-
-	rc = ctree_node_read(node, &ptr, 0);
-	if (rc < 0) {
-		ctree_node_destroy(node);
+	rc = __ctree_get_node(iter, &ptr, 0);
+	if (rc < 0)
 		return rc;
-	}
 
+	node = iter->node[0];
 	pos = __ctree_node_lower_bound(node, key);
-	iter->node[0] = node;
 	iter->pos[0] = pos;
 	return 0;
 }
