@@ -139,12 +139,9 @@ static int iterate_ctree_forward(struct ctree *ctree)
 		struct test_key data;
 		int rc;
 
-		rc = ctree_next(&iter, &key, NULL);
-		if (rc == -ENOENT)
-			break;
-
-		if (rc < 0) {
-			puts("ctree_next failed");
+		rc = ctree_key(&iter, &key);
+		if (rc == -ENOENT) {
+			puts("ctree_key failed");
 			goto out;
 		}
 
@@ -161,9 +158,18 @@ static int iterate_ctree_forward(struct ctree *ctree)
 
 		expected += 2;
 		++count;
+
+		rc = ctree_next(&iter);
+		if (rc == -ENOENT)
+			break;
+
+		if (rc < 0) {
+			puts("ctree_next failed");
+			goto out;
+		}
 	}
 
-	if (ctree_next(&iter, NULL, NULL) != -ENOENT || count != KEYS) {
+	if (ctree_next(&iter) != -ENOENT || count != KEYS) {
 		puts("wrong number of keys");
 		goto out;
 	}
@@ -172,7 +178,7 @@ static int iterate_ctree_forward(struct ctree *ctree)
 		struct test_key data;
 		int rc;
 
-		rc = ctree_prev(&iter, &key, NULL);
+		rc = ctree_prev(&iter);
 		if (rc == -ENOENT)
 			break;
 
@@ -182,6 +188,12 @@ static int iterate_ctree_forward(struct ctree *ctree)
 		}
 		expected -= 2;
 		--count;
+
+		rc = ctree_key(&iter, &key);
+		if (rc < 0) {
+			puts("ctree_key failed");
+			goto out;
+		}
 
 		if (key.size != sizeof(data)) {
 			puts("wrong key size");
@@ -195,7 +207,7 @@ static int iterate_ctree_forward(struct ctree *ctree)
 		}
 	} while (count);
 
-	if (ctree_prev(&iter, NULL, NULL) != -ENOENT || count) {
+	if (ctree_prev(&iter) != -ENOENT || count) {
 		puts("wrong number of keys");
 		goto out;
 	}
@@ -225,12 +237,18 @@ static int iterate_ctree_backward(struct ctree *ctree)
 		struct test_key data;
 		int rc;
 
-		rc = ctree_prev(&iter, &key, NULL);
+		rc = ctree_prev(&iter);
 		if (rc == -ENOENT)
 			break;
 
 		if (rc < 0) {
 			puts("ctree_prev failed");
+			goto out;
+		}
+
+		rc = ctree_key(&iter, &key);
+		if (rc < 0) {
+			puts("ctree_key failed");
 			goto out;
 		}
 
@@ -249,7 +267,7 @@ static int iterate_ctree_backward(struct ctree *ctree)
 		--count;
 	}
 
-	if (ctree_prev(&iter, NULL, NULL) != -ENOENT || count) {
+	if (ctree_prev(&iter) != -ENOENT || count) {
 		puts("wrong number of keys");
 		goto out;
 	}
@@ -258,16 +276,14 @@ static int iterate_ctree_backward(struct ctree *ctree)
 		struct test_key data;
 		int rc;
 
-		rc = ctree_next(&iter, &key, NULL);
-		if (rc == -ENOENT)
-			break;
-
-		if (rc) {
-			puts("ctree_next failed");
-			goto out;
-		}
 		expected += 2;
 		++count;
+
+		rc = ctree_key(&iter, &key);
+		if (rc < 0) {
+			puts("ctree_key failed");
+			goto out;
+		}
 
 		if (key.size != sizeof(data)) {
 			puts("wrong key size");
@@ -279,9 +295,18 @@ static int iterate_ctree_backward(struct ctree *ctree)
 			puts("wrong key value");
 			goto out;
 		}
+
+		rc = ctree_next(&iter);
+		if (rc == -ENOENT)
+			break;
+
+		if (rc) {
+			puts("ctree_next failed");
+			goto out;
+		}
 	} while (count != KEYS);
 
-	if (ctree_next(&iter, NULL, NULL) != -ENOENT || count != KEYS) {
+	if (ctree_next(&iter) != -ENOENT || count != KEYS) {
 		puts("wrong number of keys");
 		goto out;
 	}
@@ -312,7 +337,7 @@ static int lookup_ctree(struct ctree *ctree)
 			puts("key not found");
 			return -1;
 		}
-		if (ctree_next(&iter, &key, NULL) < 0) {
+		if (ctree_key(&iter, &key) < 0) {
 			ctree_iter_release(&iter);
 			puts("ctree_next failed to get key");
 			return -1;
@@ -344,7 +369,7 @@ static int lookup_ctree(struct ctree *ctree)
 			puts("lookup failed");
 			return -1;
 		}
-		if (ctree_next(&iter, &key, NULL) < 0) {
+		if (ctree_key(&iter, &key) < 0) {
 			ctree_iter_release(&iter);
 			puts("ctree_next failed to get key");
 			return -1;
@@ -376,7 +401,7 @@ static int lookup_ctree(struct ctree *ctree)
 			puts("lookup failed");
 			return -1;
 		}
-		if (ctree_next(&iter, &key, NULL) < 0) {
+		if (ctree_key(&iter, &key) < 0) {
 			ctree_iter_release(&iter);
 			puts("ctree_next failed to get key");
 			return -1;
@@ -441,14 +466,22 @@ int main()
 
 	lsm_setup(&test_lsm, &test_io.io, &test_alloc.alloc, &test_cmp);
 
-	if (create_ctree(ctree))
+	if (create_ctree(ctree)) {
+		puts("create_ctree failed");
 		goto out;
-	if (iterate_ctree_forward(ctree))
+	}
+	if (iterate_ctree_forward(ctree)) {
+		puts("iterate_ctree_forward failed");
 		goto out;
-	if (iterate_ctree_backward(ctree))
+	}
+	if (iterate_ctree_backward(ctree)) {
+		puts("iterate_ctree_backward failed");
 		goto out;
-	if (lookup_ctree(ctree))
+	}
+	if (lookup_ctree(ctree)) {
+		puts("lookup_ctree failed");
 		goto out;
+	}
 	ret = 0;
 
 out:

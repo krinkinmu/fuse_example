@@ -2,14 +2,13 @@
 #define __CTREE_H__
 
 #include <aulsmfs.h>
+#include <lsm_fwd.h>
 
 #include <stddef.h>
 #include <stdint.h>
 
 
 struct lsm;
-struct lsm_key;
-struct lsm_val;
 struct ctree_node;
 
 struct range {
@@ -67,6 +66,8 @@ struct ctree_iter {
 	struct ctree_node **node;
 	size_t *pos;
 
+	struct lsm_key key;
+	struct lsm_val val;
 	void *buf;
 	size_t buf_size;
 
@@ -83,9 +84,9 @@ int ctree_upper_bound(struct ctree_iter *iter, const struct lsm_key *key);
 int ctree_begin(struct ctree_iter *iter);
 int ctree_end(struct ctree_iter *iter);
 
-int ctree_next(struct ctree_iter *iter, struct lsm_key *key,
-			struct lsm_val *val);
-int ctree_prev(struct ctree_iter *iter, struct lsm_key *key,
-			struct lsm_val *val);
+int ctree_next(struct ctree_iter *iter);
+int ctree_prev(struct ctree_iter *iter);
+int ctree_key(const struct ctree_iter *iter, struct lsm_key *key);
+int ctree_val(const struct ctree_iter *iter, struct lsm_val *val);
 
 #endif /*__CTREE_H__*/
