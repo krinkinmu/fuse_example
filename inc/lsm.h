@@ -69,6 +69,12 @@ struct lsm_iter {
 
 	struct lsm_key keyi[AULSMFS_MAX_DISK_TREES + 2];
 	struct lsm_val vali[AULSMFS_MAX_DISK_TREES + 2];
+
+	struct lsm_key key;
+	struct lsm_val val;
+
+	void *buf;
+	size_t buf_size;
 };
 
 void lsm_iter_setup(struct lsm_iter *iter, struct lsm *lsm);
