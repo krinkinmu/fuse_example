@@ -980,6 +980,8 @@ int ctree_end(struct ctree_iter *iter)
 
 int ctree_key(const struct ctree_iter *iter, struct lsm_key *key)
 {
+	if (key)
+		memset(key, 0, sizeof(*key));
 	if (!iter->height || iter->pos[0] == iter->node[0]->entries)
 		return -ENOENT;
 	if (key)
@@ -989,6 +991,8 @@ int ctree_key(const struct ctree_iter *iter, struct lsm_key *key)
 
 int ctree_val(const struct ctree_iter *iter, struct lsm_val *val)
 {
+	if (val)
+		memset(val, 0, sizeof(*val));
 	if (!iter->height || iter->pos[0] == iter->node[0]->entries)
 		return -ENOENT;
 	if (val)
