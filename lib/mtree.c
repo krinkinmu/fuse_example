@@ -222,6 +222,8 @@ int mtree_prev(struct mtree_iter *iter)
 
 int mtree_key(const struct mtree_iter *iter, struct lsm_key *key)
 {
+	if (key)
+		memset(key, 0, sizeof(*key));
 	if (!iter->node)
 		return -ENOENT;
 	if (key)
@@ -231,6 +233,8 @@ int mtree_key(const struct mtree_iter *iter, struct lsm_key *key)
 
 int mtree_val(const struct mtree_iter *iter, struct lsm_val *val)
 {
+	if (val)
+		memset(val, 0, sizeof(*val));
 	if (!iter->node)
 		return -ENOENT;
 	if (val)
