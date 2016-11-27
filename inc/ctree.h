@@ -66,11 +66,6 @@ struct ctree_iter {
 	struct ctree_node **node;
 	size_t *pos;
 
-	struct lsm_key key;
-	struct lsm_val val;
-	void *buf;
-	size_t buf_size;
-
 	struct ctree_node *_node[CTREE_ITER_INLINE_HEIGHT];
 	size_t _pos[CTREE_ITER_INLINE_HEIGHT];
 };
