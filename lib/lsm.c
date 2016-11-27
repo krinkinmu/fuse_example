@@ -66,3 +66,31 @@ void lsm_iter_release(struct lsm_iter *iter)
 	mtree_iter_release(&iter->it0);
 	memset(iter, 0, sizeof(*iter));
 }
+
+int lsm_begin(struct lsm_iter *iter)
+{
+	mtree_begin(&iter->it0);
+	mtree_begin(&iter->it1);
+
+	for (int i = 0; i != AULSMFS_MAX_DISK_TREES; ++i) {
+		const int rc = ctree_begin(&iter->iti[i]);
+
+		if (rc < 0)
+			return rc;
+	}
+	return 0;
+}
+
+int lsm_end(struct lsm_iter *iter)
+{
+	mtree_end(&iter->it0);
+	mtree_end(&iter->it1);
+
+	for (int i = 0; i != AULSMFS_MAX_DISK_TREES; ++i) {
+		const int rc = ctree_end(&iter->iti[i]);
+
+		if (rc < 0)
+			return rc;
+	}
+	return 0;
+}

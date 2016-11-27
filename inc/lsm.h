@@ -73,5 +73,7 @@ struct lsm_iter {
 
 void lsm_iter_setup(struct lsm_iter *iter, struct lsm *lsm);
 void lsm_iter_release(struct lsm_iter *iter);
+int lsm_begin(struct lsm_iter *iter);
+int lsm_end(struct lsm_iter *iter);
 
 #endif /*__LSM_H__*/
