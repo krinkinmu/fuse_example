@@ -74,25 +74,16 @@ void lsm_iter_release(struct lsm_iter *iter)
 static void lsm_set_items(struct lsm_iter *iter)
 {
 	if (!iter->from) {
-		memset(&iter->keyi[0], 0, sizeof(iter->keyi[0]));
-		memset(&iter->vali[0], 0, sizeof(iter->vali[0]));
-
 		mtree_key(&iter->it0, &iter->keyi[0]);
 		mtree_val(&iter->it0, &iter->vali[0]);
 	}
 
 	if (iter->from <= 1 && iter->to >= 1) {
-		memset(&iter->keyi[1], 0, sizeof(iter->keyi[1]));
-		memset(&iter->vali[1], 0, sizeof(iter->vali[1]));
-
 		mtree_key(&iter->it1, &iter->keyi[1]);
 		mtree_val(&iter->it1, &iter->vali[1]);
 	}
 
 	for (int i = 0; i + 2 >= iter->from && i + 2 <= iter->to; ++i) {
-		memset(&iter->keyi[i + 2], 0, sizeof(iter->keyi[i + 2]));
-		memset(&iter->vali[i + 2], 0, sizeof(iter->vali[i + 2]));
-
 		ctree_key(&iter->iti[i], &iter->keyi[i]);
 		ctree_val(&iter->iti[i], &iter->vali[i]);
 	}
@@ -105,7 +96,6 @@ static int lsm_set_the_smallest(struct lsm_iter *iter)
 	struct lsm_key key = { NULL, 0 };
 	struct lsm_val val = { NULL, 0 };
 
-	lsm_set_items(iter);
 	iter->val.ptr = NULL;
 	iter->val.size = 0;
 	iter->key.ptr = NULL;
@@ -161,7 +151,6 @@ int lsm_set_the_largest(struct lsm_iter *iter)
 	struct lsm_key key = { NULL, 0 };
 	struct lsm_val val = { NULL, 0 };
 
-	lsm_set_items(iter);
 	iter->val.ptr = NULL;
 	iter->val.size = 0;
 	iter->key.ptr = NULL;
@@ -224,6 +213,7 @@ int lsm_begin(struct lsm_iter *iter)
 		if (rc < 0)
 			return rc;
 	}
+	lsm_set_items(iter);
 	return lsm_set_the_smallest(iter);
 }
 
@@ -241,5 +231,149 @@ int lsm_end(struct lsm_iter *iter)
 		if (rc < 0)
 			return rc;
 	}
+	lsm_set_items(iter);
 	return 0;
+}
+
+int lsm_next(struct lsm_iter *iter)
+{
+	const struct lsm *const lsm = iter->lsm;
+	struct lsm_key *key = &iter->key;
+	struct lsm_val *val = &iter->val;
+
+	if (!key->ptr)
+		return -ENOENT;
+
+	/* We don't really need a loop here since iter->from isn't going
+	 * to be changed, but using loop we can use break and continue, to
+	 * avoid ugly branches. */
+	while (!iter->from) {
+		if (!iter->keyi[0].ptr)
+			break;
+
+		if (lsm->cmp(&iter->keyi[0], key) > 0)
+			break;
+
+		mtree_next(&iter->it0);
+		mtree_key(&iter->it0, &iter->keyi[0]);
+		mtree_val(&iter->it0, &iter->vali[0]);
+	}
+
+	while (iter->from <= 1 && iter->to >= 1) {
+		if (!iter->keyi[1].ptr)
+			break;
+
+		if (lsm->cmp(&iter->keyi[1], key) > 0)
+			break;
+
+		mtree_next(&iter->it1);
+		mtree_key(&iter->it1, &iter->keyi[1]);
+		mtree_val(&iter->it1, &iter->vali[1]);
+	}
+
+	for (int i = 0; i + 2 >= iter->from && i + 2 <= iter->to; ++i) {
+		struct lsm_key *const keyi = &iter->keyi[i + 2];
+		struct lsm_val *const vali = &iter->vali[i + 2];
+
+		while (1) {
+			if (!keyi->ptr)
+				break;
+
+			if (lsm->cmp(keyi, key) > 0)
+				break;
+
+			const int rc = ctree_next(&iter->iti[i]);
+
+			if (rc < 0 && rc != -ENOENT)
+				return rc;
+			ctree_key(&iter->iti[i], keyi);
+			ctree_val(&iter->iti[i], vali);
+		}
+	}
+
+	for (int i = iter->from; i <= iter->to; ++i) {
+		if (!iter->keyi[i].ptr)
+			continue;
+		return lsm_set_the_smallest(iter);
+	}
+	memset(key, 0, sizeof(*key));
+	memset(val, 0, sizeof(*val));
+	return -ENOENT;
+}
+
+int lsm_prev(struct lsm_iter *iter)
+{
+	const struct lsm *const lsm = iter->lsm;
+	struct lsm_key *key = &iter->key;
+	int moved = 0;
+
+	while (!iter->from) {
+		if (iter->keyi[0].ptr && !key->ptr) {
+			moved = 1;
+			break;
+		}
+
+		if (iter->keyi[0].ptr && lsm->cmp(&iter->keyi[0], key) < 0) {
+			moved = 1;
+			break;
+		}
+
+		const int rc = mtree_prev(&iter->it0);
+
+		mtree_key(&iter->it0, &iter->keyi[0]);
+		mtree_val(&iter->it1, &iter->vali[0]);
+		if (rc < 0)
+			break;
+	}
+
+	while (iter->from <= 1 && iter->to >= 1) {
+		if (iter->keyi[1].ptr && !key->ptr) {
+			moved = 1;
+			break;
+		}
+
+		if (iter->keyi[1].ptr && lsm->cmp(&iter->keyi[1], key) < 0) {
+			moved = 1;
+			break;
+		}
+
+		const int rc = mtree_prev(&iter->it1);
+
+		mtree_key(&iter->it1, &iter->keyi[1]);
+		mtree_val(&iter->it1, &iter->vali[1]);
+		if (rc < 0)
+			break;
+	}
+
+	for (int i = 0; i + 2 >= iter->from && i + 2 <= iter->to; ++i) {
+		struct lsm_key *const keyi = &iter->keyi[i + 2];
+		struct lsm_val *const vali = &iter->vali[i + 2];
+
+		while (1) {
+			if (keyi->ptr && !key->ptr) {
+				moved = 1;
+				break;
+			}
+
+			if (keyi->ptr && lsm->cmp(keyi, key) < 0) {
+				moved = 1;
+				break;
+			}
+
+			const int rc = ctree_prev(&iter->iti[i]);
+
+			if (rc == -ENOENT)
+				break;
+			if (rc < 0)
+				return rc;
+			ctree_key(&iter->iti[i], keyi);
+			ctree_val(&iter->iti[i], vali);
+		}
+	}
+
+	const int rc = lsm_set_the_largest(iter);
+
+	if (rc < 0)
+		return rc;
+	return moved ? 0 : -ENOENT;
 }
