@@ -57,6 +57,7 @@ void lsm_dump(const struct lsm *lsm, struct aulsmfs_tree *ondisk);
 
 int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 			const struct lsm_val *val);
+int lsm_merge(struct lsm *lsm, int tree);
 
 
 struct lsm_iter {
@@ -81,5 +82,8 @@ void lsm_iter_setup(struct lsm_iter *iter, struct lsm *lsm);
 void lsm_iter_release(struct lsm_iter *iter);
 int lsm_begin(struct lsm_iter *iter);
 int lsm_end(struct lsm_iter *iter);
+int lsm_next(struct lsm_iter *iter);
+int lsm_prev(struct lsm_iter *iter);
+int lsm_has_item(const struct lsm_iter *iter);
 
 #endif /*__LSM_H__*/

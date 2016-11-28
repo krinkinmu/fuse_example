@@ -47,6 +47,89 @@ int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 	return mtree_add(&lsm->c0, key, val);
 }
 
+static int __lsm_build(struct ctree_builder *builder, struct lsm_iter *iter)
+{
+	int rc = lsm_begin(iter);
+
+	if (rc < 0)
+		return rc;
+
+	while (lsm_has_item(iter)) {
+		rc = ctree_builder_append(builder, &iter->key, &iter->val);
+		if (rc < 0)
+			return rc;
+
+		rc = lsm_next(iter);
+		if (rc < 0 && rc != -ENOENT)
+			return rc;
+	}
+	return ctree_builder_finish(builder);
+}
+
+static int __lsm_merge(struct lsm *lsm, int from, int to)
+{
+	struct ctree_builder builder;
+	struct lsm_iter iter;
+	int rc;
+
+	ctree_builder_setup(&builder, lsm);
+	lsm_iter_setup(&iter, lsm);
+	iter.from = from;
+	iter.to = to;
+
+	rc = __lsm_build(&builder, &iter);
+	lsm_iter_release(&iter);
+
+	if (rc < 0) {
+		ctree_builder_cancel(&builder);
+		ctree_builder_release(&builder);
+		return rc;
+	}
+
+	rc = ctree_reset(&lsm->ci[to - 2], &builder.ptr, builder.height);
+	if (rc < 0) {
+		ctree_builder_cancel(&builder);
+		ctree_builder_release(&builder);
+		return rc;
+	}
+	ctree_builder_release(&builder);
+
+	for (int i = to - 1; i >= from; --i) {
+		assert(i > 0);
+
+		if (i == 1) {
+			mtree_reset(&lsm->c1);
+			continue;
+		}
+		ctree_reset(&lsm->ci[i - 2], NULL, 0);
+	}
+	return 0;
+}
+
+int lsm_merge(struct lsm *lsm, int tree)
+{
+	if (!tree) {
+		assert(mtree_is_empty(&lsm->c1));
+		mtree_swap(&lsm->c0, &lsm->c1);
+
+		const int rc = __lsm_merge(lsm, 1, 2);
+
+		/* I don't know what can we do here if __lsm_merge failed,
+		 * we can't just drop the c1, and we can't return it back
+		 * to c0, since it might not be empty by this time. All
+		 * in all, we, probably, can only mark this tree as read
+		 * only and whole filesystem as well, or just try again
+		 * later, i'll go with trying again later. */
+
+		if (rc < 0)
+			return rc;
+		return 0;
+	}
+
+	return __lsm_merge(lsm, tree, tree + 1);
+}
+
+
 void lsm_iter_setup(struct lsm_iter *iter, struct lsm *lsm)
 {
 	memset(iter, 0, sizeof(*iter));
@@ -376,4 +459,9 @@ int lsm_prev(struct lsm_iter *iter)
 	if (rc < 0)
 		return rc;
 	return moved ? 0 : -ENOENT;
+}
+
+int lsm_has_item(const struct lsm_iter *iter)
+{
+	return iter->key.ptr ? 1 : 0;
 }
