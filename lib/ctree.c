@@ -566,6 +566,18 @@ void ctree_release(struct ctree *ctree)
 	memset(ctree, 0, sizeof(*ctree));
 }
 
+int ctree_reset(struct ctree *ctree, const struct aulsmfs_ptr *ptr, int height)
+{
+	if (!ptr) {
+		ctree->height = 0;
+		memset(&ctree->ptr, 0, sizeof(ctree->ptr));
+		return 0;
+	}
+	ctree->ptr = *ptr;
+	ctree->height = height;
+	return 0;
+}
+
 int ctree_is_empty(const struct ctree *ctree)
 {
 	return ctree->height ? 0 : 1;

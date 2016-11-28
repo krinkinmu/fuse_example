@@ -49,13 +49,14 @@ struct ctree {
 
 void ctree_setup(struct ctree *ctree, struct lsm *lsm);
 void ctree_release(struct ctree *ctree);
+int ctree_reset(struct ctree *ctree, const struct aulsmfs_ptr *ptr, int height);
 int ctree_is_empty(const struct ctree *ctree);
 void ctree_swap(struct ctree *l, struct ctree *r);
 void ctree_parse(struct ctree *ctree, const struct aulsmfs_ctree *ondisk);
 void ctree_dump(const struct ctree *ctree, struct aulsmfs_ctree *ondisk);
 
 
-#define CTREE_ITER_INLINE_HEIGHT	16
+#define CTREE_ITER_INLINE_HEIGHT	8
 
 struct ctree_iter {
 	struct lsm *lsm;
