@@ -461,6 +461,10 @@ static int ctree_builder_ensure_level(struct ctree_builder *builder, int level)
 
 	for (int i = builder->nodes; i <= level; ++i) {
 		struct ctree_node *node = ctree_node_create(lsm);
+
+		if (!node)
+			return -ENOMEM;
+
 		const int rc = ctree_node_setup(lsm, node);
 
 		if (rc < 0) {
@@ -652,9 +656,6 @@ static int ctree_iter_prepare(struct ctree_iter *iter)
 			iter->node = NULL;
 			return -ENOMEM;
 		}
-
-		memset(iter->node, 0, sizeof(*iter->node) * iter->height);
-		memset(iter->pos, 0, sizeof(*iter->pos) * iter->height);
 		return 0;
 	}
 
@@ -771,6 +772,8 @@ int ctree_next(struct ctree_iter *iter)
 	int rc;
 
 	for (int i = 0; i != iter->height; ++i) {
+		assert(iter->node[i]);
+
 		const struct ctree_node *const node = iter->node[i];
 		const size_t pos = iter->pos[i];
 
@@ -797,6 +800,8 @@ int ctree_next(struct ctree_iter *iter)
 	for (int i = level; i != 0; --i) {
 		const struct ctree_node *const parent = iter->node[i];
 		const size_t pos = iter->pos[i];
+
+		assert(parent);
 
 		struct ctree_node *child;
 		struct aulsmfs_ptr ptr;
@@ -825,6 +830,7 @@ int ctree_prev(struct ctree_iter *iter)
 	for (int i = 0; i != iter->height; ++i) {
 		const size_t pos = iter->pos[i];
 
+		assert(iter->node[i]);
 		if (pos) {
 			level = i;
 			break;
@@ -844,6 +850,8 @@ int ctree_prev(struct ctree_iter *iter)
 	for (int i = level; i != 0; --i) {
 		const struct ctree_node *const parent = iter->node[i];
 		const size_t pos = iter->pos[i];
+
+		assert(parent);
 
 		struct ctree_node *child;
 		struct aulsmfs_ptr ptr;
@@ -874,6 +882,7 @@ int ctree_lower_bound(struct ctree_iter *iter, const struct lsm_key *key)
 	if (!iter->height)
 		return 0;
 
+	assert(iter->node[0]);
 	if (iter->pos[0] == iter->node[0]->entries) {
 		rc = ctree_next(iter);
 		if (rc == -ENOENT)
@@ -893,6 +902,7 @@ int ctree_upper_bound(struct ctree_iter *iter, const struct lsm_key *key)
 	if (!iter->height)
 		return 0;
 
+	assert(iter->node[0]);
 	if (iter->pos[0] == iter->node[0]->entries)
 		return 0;
 
@@ -915,6 +925,7 @@ int ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	if (!iter->height)
 		return 0;
 
+	assert(iter->node[0]);
 	if (iter->pos[0] == iter->node[0]->entries)
 		return 0;
 
