@@ -73,6 +73,14 @@ void mtree_release(struct mtree *tree)
 	tree->tree.root = NULL;
 }
 
+void mtree_reset(struct mtree *tree)
+{
+	struct rb_node *root = tree->tree.root;
+
+	tree->tree.root = NULL;
+	__mtree_release(root);
+}
+
 int mtree_is_empty(const struct mtree *tree)
 {
 	return tree->tree.root ? 0 : 1;

@@ -32,6 +32,7 @@ struct mtree_iter {
 
 void mtree_setup(struct mtree *tree, struct lsm *lsm);
 void mtree_release(struct mtree *mtree);
+void mtree_reset(struct mtree *mtree);
 int mtree_is_empty(const struct mtree *mtree);
 void mtree_swap(struct mtree *l, struct mtree *r);
 
