@@ -33,7 +33,7 @@ static int aulsmfs_mkfs(const struct aulsmfs_config *config)
 	super.pages = htole64(config->pages);
 	super.csum = htole64(crc64(&super, sizeof(super)));
 
-	return file_write(config->fd, &super, sizeof(super));
+	return file_write_at(config->fd, &super, sizeof(super), 0);
 }
 
 static void aulsmfs_config_default(struct aulsmfs_config *config)

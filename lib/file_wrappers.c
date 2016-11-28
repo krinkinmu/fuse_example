@@ -14,51 +14,41 @@ ssize_t file_size(int fd)
 	return (ssize_t)stat.st_size;
 }
 
-int file_write(int fd, const void *data, int size)
+int file_write_at(int fd, const void *data, int size, off_t off)
 {
 	const char *buf = data;
 
-	for (int w = 0; w != size;) {
-		const int rc = write(fd, buf + w, size - w);
+	while (size) {
+		const int rc = pwrite(fd, buf, size, off);
 
 		if (rc < 0)
 			return -errno;
-		w += rc;
+		buf += rc;
+		off += rc;
+		size -= rc;
 	}
 
 	return 0;
 }
 
-int file_write_at(int fd, const void *data, int size, off_t off)
-{
-	if (lseek(fd, off, SEEK_SET) == (off_t)-1)
-		return -errno;
-	return file_write(fd, data, size);
-}
-
-int file_read(int fd, void *data, int size)
+int file_read_at(int fd, void *data, int size, off_t off)
 {
 	char *buf = data;
 	int r = 0;
 
 	while (r != size) {
-		const int rc = read(fd, buf + r, size - r);
+		const int rc = pread(fd, buf, size, off);
 
 		if (rc < 0)
 			return -errno;
 
 		if (!rc)
 			break;
-
+		buf += rc;
+		off += rc;
+		size -= rc;
 		r += rc;
 	}
 
 	return r;
-}
-
-int file_read_at(int fd, void *data, int size, off_t off)
-{
-	if (lseek(fd, off, SEEK_SET) == (off_t)-1)
-		return -errno;
-	return file_read(fd, data, size);
 }
