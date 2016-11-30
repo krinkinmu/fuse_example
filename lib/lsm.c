@@ -47,17 +47,26 @@ int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 	return mtree_add(&lsm->c0, key, val);
 }
 
-static int __lsm_build(struct ctree_builder *builder, struct lsm_iter *iter)
+static int __lsm_build(struct lsm_merge_state *state)
 {
+	const int drop = state->drop_deleted;
+
+	struct lsm_iter *iter = &state->iter;
+	struct ctree_builder *builder = &state->builder;
 	int rc = lsm_begin(iter);
 
 	if (rc < 0)
 		return rc;
 
 	while (lsm_has_item(iter)) {
-		rc = ctree_builder_append(builder, &iter->key, &iter->val);
-		if (rc < 0)
-			return rc;
+		const struct lsm_key key = iter->key;
+		const struct lsm_val val = iter->val;
+
+		if (!drop || !state->deleted(state, &key, &val)) {
+			rc = ctree_builder_append(builder, &key, &val);
+			if (rc < 0)
+				return rc;
+		}
 
 		rc = lsm_next(iter);
 		if (rc < 0 && rc != -ENOENT)
@@ -66,33 +75,57 @@ static int __lsm_build(struct ctree_builder *builder, struct lsm_iter *iter)
 	return ctree_builder_finish(builder);
 }
 
-static int __lsm_merge(struct lsm *lsm, int from, int to)
+static int lsm_drop_deleted(struct lsm_merge_state *state)
 {
-	struct ctree_builder builder;
-	struct lsm_iter iter;
+	struct lsm *lsm = state->lsm;
+	const int from = state->tree + 1;
+	const int to = AULSMFS_MAX_DISK_TREES + 2;
+
+	for (int i = from; i != to; ++i) {
+		if (!ctree_is_empty(&lsm->ci[i - 2]))
+			return 0;
+	}
+	return 1;
+}
+
+static int __lsm_merge(struct lsm_merge_state *state)
+{
+	struct lsm *lsm = state->lsm;
+	struct lsm_iter *iter = &state->iter;
+	struct ctree_builder *builder = &state->builder;
+
+	const int from = state->tree;
+	const int to = state->tree + 1;
 	int rc;
 
-	ctree_builder_setup(&builder, lsm);
-	lsm_iter_setup(&iter, lsm);
-	iter.from = from;
-	iter.to = to;
+	state->drop_deleted = lsm_drop_deleted(state);
+	ctree_builder_setup(builder, lsm);
+	lsm_iter_setup(iter, lsm);
+	iter->from = from;
+	iter->to = to;
 
-	rc = __lsm_build(&builder, &iter);
-	lsm_iter_release(&iter);
-
+	rc = __lsm_build(state);
+	lsm_iter_release(iter);
 	if (rc < 0) {
-		ctree_builder_cancel(&builder);
-		ctree_builder_release(&builder);
+		ctree_builder_cancel(builder);
+		ctree_builder_release(builder);
 		return rc;
 	}
 
-	rc = ctree_reset(&lsm->ci[to - 2], &builder.ptr, builder.height);
+	rc = state->before_finish(state);
 	if (rc < 0) {
-		ctree_builder_cancel(&builder);
-		ctree_builder_release(&builder);
+		ctree_builder_cancel(builder);
+		ctree_builder_release(builder);
 		return rc;
 	}
-	ctree_builder_release(&builder);
+
+	rc = ctree_reset(&lsm->ci[to - 2], &builder->ptr, builder->height);
+	if (rc < 0) {
+		ctree_builder_cancel(builder);
+		ctree_builder_release(builder);
+		return rc;
+	}
+	ctree_builder_release(builder);
 
 	for (int i = to - 1; i >= from; --i) {
 		assert(i > 0);
@@ -103,16 +136,21 @@ static int __lsm_merge(struct lsm *lsm, int from, int to)
 		}
 		ctree_reset(&lsm->ci[i - 2], NULL, 0);
 	}
+	state->after_finish(state);
 	return 0;
 }
 
-int lsm_merge(struct lsm *lsm, int tree)
+int lsm_merge(struct lsm *lsm, int tree, struct lsm_merge_state *state)
 {
-	if (!tree) {
+	state->lsm = lsm;
+	state->tree = tree;
+
+	if (!state->tree) {
 		assert(mtree_is_empty(&lsm->c1));
 		mtree_swap(&lsm->c0, &lsm->c1);
+		state->tree = 1;
 
-		const int rc = __lsm_merge(lsm, 1, 2);
+		const int rc = __lsm_merge(state);
 
 		/* I don't know what can we do here if __lsm_merge failed,
 		 * we can't just drop the c1, and we can't return it back
@@ -126,7 +164,7 @@ int lsm_merge(struct lsm *lsm, int tree)
 		return 0;
 	}
 
-	return __lsm_merge(lsm, tree, tree + 1);
+	return __lsm_merge(state);
 }
 
 
