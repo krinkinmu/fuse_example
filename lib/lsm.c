@@ -12,8 +12,8 @@ void lsm_setup(struct lsm *lsm, struct io *io, struct alloc *alloc,
 	lsm->alloc = alloc;
 	lsm->cmp = cmp;
 
-	mtree_setup(&lsm->c0, lsm);
-	mtree_setup(&lsm->c1, lsm);
+	mtree_setup(&lsm->c0, cmp);
+	mtree_setup(&lsm->c1, cmp);
 
 	for (int i = 0; i != AULSMFS_MAX_DISK_TREES; ++i)
 		ctree_setup(&lsm->ci[i], io, cmp);

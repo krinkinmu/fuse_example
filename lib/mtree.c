@@ -1,5 +1,5 @@
 #include <mtree.h>
-#include <lsm.h>
+#include <lsm_fwd.h>
 
 #include <assert.h>
 #include <string.h>
@@ -49,9 +49,9 @@ static void mtree_node_destroy(struct mtree_node *node)
 	free(node);
 }
 
-void mtree_setup(struct mtree *tree, struct lsm *lsm)
+void mtree_setup(struct mtree *tree, mtree_cmp_t cmp)
 {
-	tree->lsm = lsm;
+	tree->cmp = cmp;
 	tree->tree.root = NULL;
 }
 
@@ -69,7 +69,6 @@ static void __mtree_release(struct rb_node *node)
 void mtree_release(struct mtree *tree)
 {
 	__mtree_release(tree->tree.root);
-	tree->lsm = NULL;
 	tree->tree.root = NULL;
 }
 
@@ -96,13 +95,12 @@ void mtree_swap(struct mtree *l, struct mtree *r)
 
 static void __mtree_insert(struct mtree *tree, struct mtree_node *new)
 {
-	struct lsm *const lsm = tree->lsm;
 	struct rb_node **plink = &tree->tree.root;
 	struct rb_node *parent = NULL;
 
 	while (*plink) {
 		struct mtree_node * const old = (struct mtree_node *)(*plink);
-		const int cmp = lsm->cmp(&old->key, &new->key);
+		const int cmp = tree->cmp(&old->key, &new->key);
 
 		if (!cmp) {
 			rb_swap_nodes(&tree->tree, &old->rb, &new->rb);
@@ -135,27 +133,25 @@ int mtree_add(struct mtree *tree, const struct lsm_key *key,
 
 void mtree_iter_setup(struct mtree_iter *iter, struct mtree *tree)
 {
-	iter->lsm = tree->lsm;
+	iter->cmp = tree->cmp;
 	iter->tree = &tree->tree;
 	iter->node = NULL;
 }
 
 void mtree_iter_release(struct mtree_iter *iter)
 {
-	iter->lsm = NULL;
 	iter->tree = NULL;
 	iter->node = NULL;
 }
 
 void mtree_lower_bound(struct mtree_iter *iter, const struct lsm_key *key)
 {
-	const struct lsm * const lsm = iter->lsm;
 	struct rb_node *p = iter->tree->root;
 	struct mtree_node *lower = NULL;
 
 	while (p) {
 		struct mtree_node * const node = (struct mtree_node *)p;
-		const int cmp = lsm->cmp(&node->key, key);
+		const int cmp = iter->cmp(&node->key, key);
 
 		if (cmp >= 0) {
 			p = p->left;
@@ -169,13 +165,12 @@ void mtree_lower_bound(struct mtree_iter *iter, const struct lsm_key *key)
 
 void mtree_upper_bound(struct mtree_iter *iter, const struct lsm_key *key)
 {
-	const struct lsm * const lsm = iter->lsm;
 	struct rb_node *p = iter->tree->root;
 	struct mtree_node *upper = NULL;
 
 	while (p) {
 		struct mtree_node * const node = (struct mtree_node *)p;
-		const int cmp = lsm->cmp(&node->key, key);
+		const int cmp = iter->cmp(&node->key, key);
 
 		if (cmp <= 0) {
 			p = p->right;
@@ -199,10 +194,8 @@ void mtree_end(struct mtree_iter *iter)
 
 int mtree_lookup(struct mtree_iter *iter, const struct lsm_key *key)
 {
-	const struct lsm * const lsm = iter->lsm;
-
 	mtree_lower_bound(iter, key);
-	if (iter->node && lsm->cmp(&iter->node->key, key))
+	if (iter->node && iter->cmp(&iter->node->key, key))
 		iter->node = NULL;
 	return iter->node ? 1 : 0;
 }

@@ -4,14 +4,15 @@
 #include <rbtree.h>
 
 
-struct lsm;
 struct lsm_key;
 struct lsm_val;
 struct mtree_node;
 
 
+typedef int (*mtree_cmp_t)(const struct lsm_key *, const struct lsm_key *);
+
 struct mtree {
-	struct lsm *lsm;
+	mtree_cmp_t cmp;
 
 	/* For now it's just a rb tree, but we probably need a persistent
 	 * ordered map so that we can make snapshot of the structure so
@@ -23,14 +24,14 @@ struct mtree {
 };
 
 struct mtree_iter {
-	struct lsm *lsm;
+	mtree_cmp_t cmp;
 	struct rb_tree *tree;
 
 	/* NULL means end */
 	struct mtree_node *node;
 };
 
-void mtree_setup(struct mtree *tree, struct lsm *lsm);
+void mtree_setup(struct mtree *tree, mtree_cmp_t cmp);
 void mtree_release(struct mtree *mtree);
 void mtree_reset(struct mtree *mtree);
 int mtree_is_empty(const struct mtree *mtree);
