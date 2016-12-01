@@ -66,7 +66,7 @@ void ctree_parse(struct ctree *ctree, const struct aulsmfs_ctree *ondisk);
 void ctree_dump(const struct ctree *ctree, struct aulsmfs_ctree *ondisk);
 
 
-#define CTREE_ITER_INLINE_HEIGHT	8
+#define CTREE_ITER_INLINE_HEIGHT	6
 
 struct ctree_iter {
 	struct io *io;
