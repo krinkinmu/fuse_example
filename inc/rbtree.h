@@ -13,7 +13,7 @@ struct rb_tree {
 	struct rb_node *root;
 };
 
-inline void rb_link(struct rb_node *node, struct rb_node *parent,
+static inline void rb_link(struct rb_node *node, struct rb_node *parent,
 			struct rb_node **plink)
 {
 	node->parent = (uintptr_t)parent;
