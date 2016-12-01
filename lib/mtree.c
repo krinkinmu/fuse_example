@@ -52,6 +52,7 @@ static void mtree_node_destroy(struct mtree_node *node)
 void mtree_setup(struct mtree *tree, mtree_cmp_t cmp)
 {
 	tree->cmp = cmp;
+	tree->bytes = 0;
 	tree->tree.root = NULL;
 }
 
@@ -70,6 +71,7 @@ void mtree_release(struct mtree *tree)
 {
 	__mtree_release(tree->tree.root);
 	tree->tree.root = NULL;
+	tree->bytes = 0;
 }
 
 void mtree_reset(struct mtree *tree)
@@ -77,6 +79,7 @@ void mtree_reset(struct mtree *tree)
 	struct rb_node *root = tree->tree.root;
 
 	tree->tree.root = NULL;
+	tree->bytes = 0;
 	__mtree_release(root);
 }
 
@@ -128,6 +131,7 @@ int mtree_add(struct mtree *tree, const struct lsm_key *key,
 		return -ENOMEM;
 
 	__mtree_insert(tree, new);
+	tree->bytes += key->size + val->size;
 	return 0;
 }
 

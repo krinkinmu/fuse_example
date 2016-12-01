@@ -3,6 +3,8 @@
 
 #include <rbtree.h>
 
+#include <stddef.h>
+
 
 struct lsm_key;
 struct lsm_val;
@@ -13,6 +15,7 @@ typedef int (*mtree_cmp_t)(const struct lsm_key *, const struct lsm_key *);
 
 struct mtree {
 	mtree_cmp_t cmp;
+	size_t bytes;
 
 	/* For now it's just a rb tree, but we probably need a persistent
 	 * ordered map so that we can make snapshot of the structure so
