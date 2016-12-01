@@ -29,6 +29,7 @@ struct ctree_builder {
 	struct range *reserved;
 	size_t ranges;
 	size_t max_ranges;
+	size_t pages;
 
 	/* These will be set by ctree_builder_finish. */
 	struct aulsmfs_ptr ptr;
@@ -51,12 +52,14 @@ struct ctree {
 	ctree_cmp_t cmp;
 
 	struct aulsmfs_ptr ptr;
-	int height;
+	size_t height;
+	size_t pages;
 };
 
 void ctree_setup(struct ctree *ctree, struct io *io, ctree_cmp_t cmp);
 void ctree_release(struct ctree *ctree);
-int ctree_reset(struct ctree *ctree, const struct aulsmfs_ptr *ptr, int height);
+int ctree_reset(struct ctree *ctree, const struct aulsmfs_ptr *ptr,
+			size_t height, size_t pages);
 int ctree_is_empty(const struct ctree *ctree);
 void ctree_swap(struct ctree *l, struct ctree *r);
 void ctree_parse(struct ctree *ctree, const struct aulsmfs_ctree *ondisk);

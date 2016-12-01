@@ -112,7 +112,8 @@ static int __lsm_merge(struct lsm_merge_policy *policy)
 		return rc;
 	}
 
-	rc = ctree_reset(&lsm->ci[to - 2], &builder->ptr, builder->height);
+	rc = ctree_reset(&lsm->ci[to - 2], &builder->ptr, builder->height,
+				builder->pages);
 	if (rc < 0) {
 		ctree_builder_cancel(builder);
 		ctree_builder_release(builder);
@@ -127,7 +128,7 @@ static int __lsm_merge(struct lsm_merge_policy *policy)
 			mtree_reset(&lsm->c1);
 			continue;
 		}
-		ctree_reset(&lsm->ci[i - 2], NULL, 0);
+		ctree_reset(&lsm->ci[i - 2], NULL, 0, 0);
 	}
 	return 0;
 }

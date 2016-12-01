@@ -387,6 +387,7 @@ static int ctree_builder_alloc(struct ctree_builder *builder, uint64_t size,
 
 	new->begin = *offs;
 	new->end = *offs + size;
+	builder->pages += size;
 	return 0;
 }
 
@@ -571,15 +572,18 @@ void ctree_release(struct ctree *ctree)
 	memset(ctree, 0, sizeof(*ctree));
 }
 
-int ctree_reset(struct ctree *ctree, const struct aulsmfs_ptr *ptr, int height)
+int ctree_reset(struct ctree *ctree, const struct aulsmfs_ptr *ptr,
+			size_t height, size_t pages)
 {
 	if (!ptr) {
 		ctree->height = 0;
+		ctree->pages = pages;
 		memset(&ctree->ptr, 0, sizeof(ctree->ptr));
 		return 0;
 	}
 	ctree->ptr = *ptr;
 	ctree->height = height;
+	ctree->pages = pages;
 	return 0;
 }
 
@@ -598,20 +602,26 @@ void ctree_swap(struct ctree *l, struct ctree *r)
 
 void ctree_parse(struct ctree *ctree, const struct aulsmfs_ctree *ondisk)
 {
-	le16_t height;
+	le32_t height;
+	le32_t pages;
 
 	/* Teoritically ondisk might be unaligned, thus this mess. */
 	memcpy(&ctree->ptr, &ondisk->ptr, sizeof(ctree->ptr));
 	memcpy(&height, &ondisk->height, sizeof(height));
-	ctree->height = le16toh(height);
+	memcpy(&pages, &ondisk->pages, sizeof(pages));
+
+	ctree->height = le32toh(height);
+	ctree->pages = le32toh(pages);
 }
 
 void ctree_dump(const struct ctree *ctree, struct aulsmfs_ctree *ondisk)
 {
-	const le16_t height = htole16(ctree->height);
+	const le32_t height = htole32(ctree->height);
+	const le32_t pages = htole32(ctree->pages);
 
 	memcpy(&ondisk->ptr, &ctree->ptr, sizeof(ctree->ptr));
 	memcpy(&ondisk->height, &height, sizeof(height));
+	memcpy(&ondisk->pages, &pages, sizeof(pages));
 }
 
 
