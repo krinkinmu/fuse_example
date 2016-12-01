@@ -113,9 +113,9 @@ static void __mtree_insert(struct mtree *tree, struct mtree_node *new)
 
 		parent = *plink;
 		if (cmp < 0)
-			plink = &parent->left;
-		else
 			plink = &parent->right;
+		else
+			plink = &parent->left;
 	}
 
 	rb_link(&new->rb, parent, plink);
