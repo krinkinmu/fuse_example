@@ -78,10 +78,10 @@ static int __lsm_build(struct lsm_merge_policy *policy)
 static int lsm_drop_deleted(struct lsm_merge_policy *policy)
 {
 	struct lsm *lsm = policy->lsm;
-	const int from = policy->tree + 1;
+	const int from = policy->tree + 2;
 	const int to = AULSMFS_MAX_DISK_TREES + 2;
 
-	for (int i = from; i != to; ++i) {
+	for (int i = from; i < to; ++i) {
 		if (!ctree_is_empty(&lsm->ci[i - 2]))
 			return 0;
 	}
@@ -185,6 +185,7 @@ void lsm_iter_release(struct lsm_iter *iter)
 
 	mtree_iter_release(&iter->it1);
 	mtree_iter_release(&iter->it0);
+	free(iter->buf);
 	memset(iter, 0, sizeof(*iter));
 }
 
@@ -200,9 +201,12 @@ static void lsm_set_items(struct lsm_iter *iter)
 		mtree_val(&iter->it1, &iter->vali[1]);
 	}
 
-	for (int i = 0; i + 2 >= iter->from && i + 2 <= iter->to; ++i) {
-		ctree_key(&iter->iti[i], &iter->keyi[i]);
-		ctree_val(&iter->iti[i], &iter->vali[i]);
+	const int from = iter->from < 2 ? 0 : iter->from - 2;
+	const int to = iter->to < 2 ? 0 : iter->to - 1;
+
+	for (int i = from; i < to; ++i) {
+		ctree_key(&iter->iti[i], &iter->keyi[i + 2]);
+		ctree_val(&iter->iti[i], &iter->vali[i + 2]);
 	}
 }
 
@@ -324,7 +328,10 @@ int lsm_begin(struct lsm_iter *iter)
 	if (iter->from <= 1 && iter->to >= 1)
 		mtree_begin(&iter->it1);
 
-	for (int i = 0; i + 2 >= iter->from && i + 2 <= iter->to; ++i) {
+	const int from = iter->from < 2 ? 0 : iter->from - 2;
+	const int to = iter->to < 2 ? 0 : iter->to - 1;
+
+	for (int i = from; i < to; ++i) {
 		const int rc = ctree_begin(&iter->iti[i]);
 
 		if (rc < 0)
@@ -342,7 +349,10 @@ int lsm_end(struct lsm_iter *iter)
 	if (iter->from <= 1 && iter->to >= 1)
 		mtree_end(&iter->it1);
 
-	for (int i = 0; i + 2 >= iter->from && i + 2 <= iter->to; ++i) {
+	const int from = iter->from < 2 ? 0 : iter->from - 2;
+	const int to = iter->to < 2 ? 0 : iter->to - 1;
+
+	for (int i = from; i < to; ++i) {
 		const int rc = ctree_end(&iter->iti[i]);
 
 		if (rc < 0)
@@ -388,7 +398,10 @@ int lsm_next(struct lsm_iter *iter)
 		mtree_val(&iter->it1, &iter->vali[1]);
 	}
 
-	for (int i = 0; i + 2 >= iter->from && i + 2 <= iter->to; ++i) {
+	const int from = iter->from < 2 ? 0 : iter->from - 2;
+	const int to = iter->to < 2 ? 0 : iter->to - 1;
+
+	for (int i = from; i < to; ++i) {
 		struct lsm_key *const keyi = &iter->keyi[i + 2];
 		struct lsm_val *const vali = &iter->vali[i + 2];
 
