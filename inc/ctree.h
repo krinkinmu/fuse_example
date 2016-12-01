@@ -2,14 +2,16 @@
 #define __CTREE_H__
 
 #include <aulsmfs.h>
-#include <lsm_fwd.h>
+#include <alloc.h>
+#include <io.h>
 
 #include <stddef.h>
 #include <stdint.h>
 
 
-struct lsm;
 struct ctree_node;
+struct lsm_val;
+struct lsm_key;
 
 struct range {
 	uint64_t begin;
@@ -17,22 +19,24 @@ struct range {
 };
 
 struct ctree_builder {
-	struct lsm *lsm;
+	struct io *io;
+	struct alloc *alloc;
 
 	struct ctree_node **node;
 	int nodes;
 	int max_nodes;
 
-	/* These will be set by ctree_builder_finish. */
 	struct range *reserved;
 	size_t ranges;
 	size_t max_ranges;
 
+	/* These will be set by ctree_builder_finish. */
 	struct aulsmfs_ptr ptr;
 	int height;
 };
 
-void ctree_builder_setup(struct ctree_builder *builder, struct lsm *lsm);
+void ctree_builder_setup(struct ctree_builder *builder, struct io *io,
+			struct alloc *alloc);
 void ctree_builder_release(struct ctree_builder *builder);
 int ctree_builder_append(struct ctree_builder *builder,
 			const struct lsm_key *key, const struct lsm_val *val);
@@ -40,14 +44,17 @@ int ctree_builder_finish(struct ctree_builder *builder);
 void ctree_builder_cancel(struct ctree_builder *builder);
 
 
+typedef int (*ctree_cmp_t)(const struct lsm_key *, const struct lsm_key *);
+
 struct ctree {
-	struct lsm *lsm;
+	struct io *io;
+	ctree_cmp_t cmp;
 
 	struct aulsmfs_ptr ptr;
 	int height;
 };
 
-void ctree_setup(struct ctree *ctree, struct lsm *lsm);
+void ctree_setup(struct ctree *ctree, struct io *io, ctree_cmp_t cmp);
 void ctree_release(struct ctree *ctree);
 int ctree_reset(struct ctree *ctree, const struct aulsmfs_ptr *ptr, int height);
 int ctree_is_empty(const struct ctree *ctree);
@@ -59,7 +66,8 @@ void ctree_dump(const struct ctree *ctree, struct aulsmfs_ctree *ondisk);
 #define CTREE_ITER_INLINE_HEIGHT	8
 
 struct ctree_iter {
-	struct lsm *lsm;
+	struct io *io;
+	ctree_cmp_t cmp;
 
 	struct aulsmfs_ptr ptr;
 	int height;

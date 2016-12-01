@@ -91,12 +91,12 @@ static int test_cmp(const struct lsm_key *l, const struct lsm_key *r)
 
 static const size_t KEYS = 1000000;
 
-static int create_ctree(struct ctree *ctree)
+static int create_ctree(struct ctree *ctree, struct io *io, struct alloc *alloc)
 {
 	struct ctree_builder builder;
 	int rc;
 
-	ctree_builder_setup(&builder, ctree->lsm);
+	ctree_builder_setup(&builder, io, alloc);
 	for (size_t i = 0; i != KEYS; ++i) {
 		struct test_key data = { .value = 2 * i };
 		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
@@ -445,32 +445,31 @@ int main()
 		.offs = 0
 	};
 
-	struct lsm test_lsm;
-	struct ctree *ctree = &test_lsm.ci[0];
+	struct ctree ctree;
 	int ret = -1;
 
-	lsm_setup(&test_lsm, &test_io.io, &test_alloc.alloc, &test_cmp);
+	ctree_setup(&ctree, &test_io.io, &test_cmp);
 
-	if (create_ctree(ctree)) {
+	if (create_ctree(&ctree, &test_io.io, &test_alloc.alloc)) {
 		puts("create_ctree failed");
 		goto out;
 	}
-	if (iterate_ctree_forward(ctree)) {
+	if (iterate_ctree_forward(&ctree)) {
 		puts("iterate_ctree_forward failed");
 		goto out;
 	}
-	if (iterate_ctree_backward(ctree)) {
+	if (iterate_ctree_backward(&ctree)) {
 		puts("iterate_ctree_backward failed");
 		goto out;
 	}
-	if (lookup_ctree(ctree)) {
+	if (lookup_ctree(&ctree)) {
 		puts("lookup_ctree failed");
 		goto out;
 	}
 	ret = 0;
 
 out:
-	lsm_release(&test_lsm);
+	ctree_release(&ctree);
 	close(fd);
 
 	return ret;

@@ -16,7 +16,7 @@ void lsm_setup(struct lsm *lsm, struct io *io, struct alloc *alloc,
 	mtree_setup(&lsm->c1, lsm);
 
 	for (int i = 0; i != AULSMFS_MAX_DISK_TREES; ++i)
-		ctree_setup(&lsm->ci[i], lsm);
+		ctree_setup(&lsm->ci[i], io, cmp);
 }
 
 void lsm_release(struct lsm *lsm)
@@ -47,12 +47,12 @@ int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 	return mtree_add(&lsm->c0, key, val);
 }
 
-static int __lsm_build(struct lsm_merge_state *state)
+static int __lsm_build(struct lsm_merge_policy *policy)
 {
-	const int drop = state->drop_deleted;
+	const int drop = policy->drop_deleted;
 
-	struct lsm_iter *iter = &state->iter;
-	struct ctree_builder *builder = &state->builder;
+	struct lsm_iter *iter = &policy->iter;
+	struct ctree_builder *builder = &policy->builder;
 	int rc = lsm_begin(iter);
 
 	if (rc < 0)
@@ -62,7 +62,7 @@ static int __lsm_build(struct lsm_merge_state *state)
 		const struct lsm_key key = iter->key;
 		const struct lsm_val val = iter->val;
 
-		if (!drop || !state->deleted(state, &key, &val)) {
+		if (!drop || !policy->deleted(policy, &key, &val)) {
 			rc = ctree_builder_append(builder, &key, &val);
 			if (rc < 0)
 				return rc;
@@ -75,10 +75,10 @@ static int __lsm_build(struct lsm_merge_state *state)
 	return ctree_builder_finish(builder);
 }
 
-static int lsm_drop_deleted(struct lsm_merge_state *state)
+static int lsm_drop_deleted(struct lsm_merge_policy *policy)
 {
-	struct lsm *lsm = state->lsm;
-	const int from = state->tree + 1;
+	struct lsm *lsm = policy->lsm;
+	const int from = policy->tree + 1;
 	const int to = AULSMFS_MAX_DISK_TREES + 2;
 
 	for (int i = from; i != to; ++i) {
@@ -88,31 +88,24 @@ static int lsm_drop_deleted(struct lsm_merge_state *state)
 	return 1;
 }
 
-static int __lsm_merge(struct lsm_merge_state *state)
+static int __lsm_merge(struct lsm_merge_policy *policy)
 {
-	struct lsm *lsm = state->lsm;
-	struct lsm_iter *iter = &state->iter;
-	struct ctree_builder *builder = &state->builder;
+	struct lsm *lsm = policy->lsm;
+	struct lsm_iter *iter = &policy->iter;
+	struct ctree_builder *builder = &policy->builder;
 
-	const int from = state->tree;
-	const int to = state->tree + 1;
+	const int from = policy->tree;
+	const int to = policy->tree + 1;
 	int rc;
 
-	state->drop_deleted = lsm_drop_deleted(state);
-	ctree_builder_setup(builder, lsm);
+	policy->drop_deleted = lsm_drop_deleted(policy);
+	ctree_builder_setup(builder, lsm->io, lsm->alloc);
 	lsm_iter_setup(iter, lsm);
 	iter->from = from;
 	iter->to = to;
 
-	rc = __lsm_build(state);
+	rc = __lsm_build(policy);
 	lsm_iter_release(iter);
-	if (rc < 0) {
-		ctree_builder_cancel(builder);
-		ctree_builder_release(builder);
-		return rc;
-	}
-
-	rc = state->before_finish(state);
 	if (rc < 0) {
 		ctree_builder_cancel(builder);
 		ctree_builder_release(builder);
@@ -136,21 +129,20 @@ static int __lsm_merge(struct lsm_merge_state *state)
 		}
 		ctree_reset(&lsm->ci[i - 2], NULL, 0);
 	}
-	state->after_finish(state);
 	return 0;
 }
 
-int lsm_merge(struct lsm *lsm, int tree, struct lsm_merge_state *state)
+int lsm_merge(struct lsm *lsm, int tree, struct lsm_merge_policy *policy)
 {
-	state->lsm = lsm;
-	state->tree = tree;
+	policy->lsm = lsm;
+	policy->tree = tree;
 
-	if (!state->tree) {
+	if (!policy->tree) {
 		assert(mtree_is_empty(&lsm->c1));
 		mtree_swap(&lsm->c0, &lsm->c1);
-		state->tree = 1;
+		policy->tree = 1;
 
-		const int rc = __lsm_merge(state);
+		const int rc = __lsm_merge(policy);
 
 		/* I don't know what can we do here if __lsm_merge failed,
 		 * we can't just drop the c1, and we can't return it back
@@ -158,13 +150,16 @@ int lsm_merge(struct lsm *lsm, int tree, struct lsm_merge_state *state)
 		 * in all, we, probably, can only mark this tree as read
 		 * only and whole filesystem as well, or just try again
 		 * later, i'll go with trying again later. */
+		return rc;
+	}
 
-		if (rc < 0)
-			return rc;
+	/* The next tree is empty, we can just swap these threes. */
+	if (ctree_is_empty(&lsm->ci[tree - 1])) {
+		ctree_swap(&lsm->ci[tree - 1], &lsm->ci[tree - 2]);
 		return 0;
 	}
 
-	return __lsm_merge(state);
+	return __lsm_merge(policy);
 }
 
 

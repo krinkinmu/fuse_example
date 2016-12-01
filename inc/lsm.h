@@ -86,7 +86,7 @@ int lsm_prev(struct lsm_iter *iter);
 int lsm_has_item(const struct lsm_iter *iter);
 
 
-struct lsm_merge_state {
+struct lsm_merge_policy {
 	struct lsm *lsm;
 	struct lsm_iter iter;
 	struct ctree_builder builder;
@@ -94,13 +94,11 @@ struct lsm_merge_state {
 	int drop_deleted;
 	int tree;
 
-	int (*deleted)(struct lsm_merge_state *, const struct lsm_key *,
+	int (*deleted)(struct lsm_merge_policy *, const struct lsm_key *,
 				const struct lsm_val *);
-	int (*before_finish)(struct lsm_merge_state *);
-	void (*after_finish)(struct lsm_merge_state *);
 };
 
-int lsm_merge(struct lsm *lsm, int tree, struct lsm_merge_state *state);
+int lsm_merge(struct lsm *lsm, int tree, struct lsm_merge_policy *policy);
 
 
 #endif /*__LSM_H__*/
