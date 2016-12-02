@@ -3,4 +3,4 @@
 *.a
 aulsmfs.fuse
 aulsmfs.mkfs
-lib/crc64_table.h
+util/crc64_table.h

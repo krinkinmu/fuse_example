@@ -112,28 +112,107 @@ static int create_lsm(struct lsm *lsm)
 		struct lsm_val val = { .ptr = NULL, .size = 0 };
 
 		rc = lsm_add(lsm, &key, &val);
-		if (rc < 0)
+		if (rc < 0) {
+			puts("lsm_add failed");
 			return -1;
+		}
 
 		if ((i + 1) % 10000 == 0) {
 			rc = lsm_merge(lsm, 0, &policy);
-			if (rc < 0)
+			if (rc < 0) {
+				puts("lsm_merge failed");
 				return -1;
+			}
 		}
 
 		if ((i + 1) % 100000 == 0) {
 			rc = lsm_merge(lsm, 2, &policy);
-			if (rc < 0)
+			if (rc < 0) {
+				puts("lsm_merge failed");
 				return -1;
+			}
 		}
 
 		if ((i + 1) % 500000 == 0) {
 			rc = lsm_merge(lsm, 3, &policy);
-			if (rc < 0)
+			if (rc < 0) {
+				puts("lsm_merge failed");
 				return -1;
+			}
 		}
 	}
 	return 0;
+}
+
+static int iterate_lsm_forward(struct lsm *lsm)
+{
+	struct lsm_iter iter;
+	int ret = -1;
+
+	lsm_iter_setup(&iter, lsm);
+	if (lsm_begin(&iter) < 0) {
+		puts("lsm_begin failed");
+		goto out;
+	}
+
+	for (size_t i = 0; i != KEYS; ++i) {
+		if (!lsm_has_item(&iter)) {
+			puts("wrong number of keys");
+			goto out;
+		}
+
+		struct test_key *key;
+
+		if (iter.key.size != sizeof(*key)) {
+			puts("wrong key size");
+			goto out;
+		}
+
+		key = (struct test_key *)iter.key.ptr;
+		if (key->value != i * 2) {
+			puts("wrong key value");
+			goto out;
+		}
+
+		const int rc = lsm_next(&iter);
+
+		if (rc < 0 && rc != -ENOENT) {
+			puts("lsm_next failed");
+			goto out;
+		}
+	}
+
+	for (size_t i = KEYS; i != 0; --i) {
+		const int rc = lsm_prev(&iter);
+
+		if (rc < 0 && rc != -ENOENT) {
+			puts("lsm_prev failed");
+			goto out;
+		}
+
+		if (rc == -ENOENT || !lsm_has_item(&iter)) {
+			puts("wrong number of keys");
+			goto out;
+		}
+
+		struct test_key *key;
+
+		if (iter.key.size != sizeof(*key)) {
+			puts("wrong key size");
+			goto out;
+		}
+
+		key = (struct test_key *)iter.key.ptr;
+		if (key->value != (i - 1) * 2) {
+			puts("wrong key value");
+			goto out;
+		}
+	}
+
+	ret = 0;
+out:
+	lsm_iter_release(&iter);
+	return ret;
 }
 
 static struct io_ops test_io_ops = {
@@ -181,6 +260,10 @@ int main()
 
 	if (create_lsm(&lsm)) {
 		puts("create_lsm failed");
+		goto out;
+	}
+	if (iterate_lsm_forward(&lsm)) {
+		puts("iterate_iter_forward failed");
 		goto out;
 	}
 	ret = 0;
