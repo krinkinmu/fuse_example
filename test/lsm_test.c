@@ -89,7 +89,7 @@ static int test_cmp(const struct lsm_key *l, const struct lsm_key *r)
 	return 0;
 }
 
-static const size_t KEYS = 1000000;
+static const size_t KEYS = 10000000;
 
 static int test_key_deleted(struct lsm_merge_policy *policy,
 			const struct lsm_key *key, const struct lsm_val *val)
@@ -117,7 +117,7 @@ static int create_lsm(struct lsm *lsm)
 			return -1;
 		}
 
-		if ((i + 1) % 10000 == 0) {
+		if ((i + 1) % 100000 == 0) {
 			rc = lsm_merge(lsm, 0, &policy);
 			if (rc < 0) {
 				puts("lsm_merge failed");
@@ -125,7 +125,7 @@ static int create_lsm(struct lsm *lsm)
 			}
 		}
 
-		if ((i + 1) % 100000 == 0) {
+		if ((i + 1) % 1000000 == 0) {
 			rc = lsm_merge(lsm, 2, &policy);
 			if (rc < 0) {
 				puts("lsm_merge failed");
@@ -133,7 +133,7 @@ static int create_lsm(struct lsm *lsm)
 			}
 		}
 
-		if ((i + 1) % 500000 == 0) {
+		if ((i + 1) % 5000000 == 0) {
 			rc = lsm_merge(lsm, 3, &policy);
 			if (rc < 0) {
 				puts("lsm_merge failed");
@@ -215,6 +215,77 @@ out:
 	return ret;
 }
 
+static int iterate_lsm_backward(struct lsm *lsm)
+{
+	struct lsm_iter iter;
+	int ret = -1;
+
+	lsm_iter_setup(&iter, lsm);
+	if (lsm_end(&iter) < 0) {
+		puts("lsm_begin failed");
+		goto out;
+	}
+
+	for (size_t i = KEYS; i != 0; --i) {
+		const int rc = lsm_prev(&iter);
+
+		if (rc < 0 && rc != -ENOENT) {
+			puts("lsm_prev failed");
+			goto out;
+		}
+
+		if (rc == -ENOENT || !lsm_has_item(&iter)) {
+			puts("wrong number of keys");
+			goto out;
+		}
+
+		struct test_key *key;
+
+		if (iter.key.size != sizeof(*key)) {
+			puts("wrong key size");
+			goto out;
+		}
+
+		key = (struct test_key *)iter.key.ptr;
+		if (key->value != (i - 1) * 2) {
+			puts("wrong key value");
+			goto out;
+		}
+	}
+
+	for (size_t i = 0; i != KEYS; ++i) {
+		if (!lsm_has_item(&iter)) {
+			puts("wrong number of keys");
+			goto out;
+		}
+
+		struct test_key *key;
+
+		if (iter.key.size != sizeof(*key)) {
+			puts("wrong key size");
+			goto out;
+		}
+
+		key = (struct test_key *)iter.key.ptr;
+		if (key->value != i * 2) {
+			puts("wrong key value");
+			goto out;
+		}
+
+		const int rc = lsm_next(&iter);
+
+		if (rc < 0 && rc != -ENOENT) {
+			puts("lsm_next failed");
+			goto out;
+		}
+	}
+
+	ret = 0;
+out:
+	lsm_iter_release(&iter);
+	return ret;
+}
+
 static struct io_ops test_io_ops = {
 	.read = &test_read,
 	.write = &test_write,
@@ -263,6 +334,10 @@ int main()
 		goto out;
 	}
 	if (iterate_lsm_forward(&lsm)) {
+		puts("iterate_iter_forward failed");
+		goto out;
+	}
+	if (iterate_lsm_backward(&lsm)) {
 		puts("iterate_iter_forward failed");
 		goto out;
 	}
