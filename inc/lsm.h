@@ -79,6 +79,11 @@ struct lsm_iter {
 
 void lsm_iter_setup(struct lsm_iter *iter, struct lsm *lsm);
 void lsm_iter_release(struct lsm_iter *iter);
+
+int lsm_lookup(struct lsm_iter *iter, const struct lsm_key *key);
+int lsm_lower_bound(struct lsm_iter *iter, const struct lsm_key *key);
+int lsm_upper_bound(struct lsm_iter *iter, const struct lsm_key *key);
+
 int lsm_begin(struct lsm_iter *iter);
 int lsm_end(struct lsm_iter *iter);
 int lsm_next(struct lsm_iter *iter);
