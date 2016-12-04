@@ -57,7 +57,7 @@ aulsmfs.fuse: $(AULSMFS_FUSE_OBJ) libauutil.a libaulsmfs.a
 aulsmfs.mkfs: $(AULSMFS_MKFS_OBJ) libauutil.a libaulsmfs.a
 	$(CC) $^ $(LFLAGS) $(MKFS_LFLAGS) -o $@
 
-libauutil.a: $(AULSMFS_UTIL_GEN) $(AULSMFS_UTIL_OBJ)
+libauutil.a: $(AULSMFS_UTIL_OBJ)
 	$(AR) rcs $@ $(AULSMFS_UTIL_OBJ)
 
 libaulsmfs.a: $(AULSMFS_LIB_OBJ)
@@ -72,7 +72,7 @@ $(AULSMFS_FUSE_OBJ): %.o: %.c
 $(AULSMFS_MKFS_OBJ): %.o: %.c
 	$(CC) -I$(AULSMFS_INC) $(CFLAGS) $(MKFS_CFLAGS) -MD -c $< -o $@
 
-$(AULSMFS_UTIL_OBJ): %.o: %.c
+$(AULSMFS_UTIL_OBJ): %.o: %.c $(AULSMFS_UTIL_GEN)
 	$(CC) -I$(AULSMFS_INC) $(CFLAGS) $(LIB_CFLAGS) -MD -c $< -o $@
 
 $(AULSMFS_LIB_OBJ): %.o: %.c
