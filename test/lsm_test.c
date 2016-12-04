@@ -76,7 +76,7 @@ static int test_sync(struct io *io)
 }
 
 struct test_key {
-	size_t value;
+	long long value;
 };
 
 static int test_cmp(const struct lsm_key *l, const struct lsm_key *r)
@@ -107,7 +107,7 @@ static int create_lsm(struct lsm *lsm)
 
 	policy.deleted = &test_key_deleted;
 	for (size_t i = 0; i != KEYS; ++i) {
-		struct test_key data = { .value = 2 * i };
+		struct test_key data = { .value = 2 * (long long)i };
 		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
 		struct lsm_val val = { .ptr = NULL, .size = 0 };
 
@@ -169,7 +169,7 @@ static int iterate_lsm_forward(struct lsm *lsm)
 		}
 
 		key = (struct test_key *)iter.key.ptr;
-		if (key->value != i * 2) {
+		if (key->value != (long long)i * 2) {
 			puts("wrong key value");
 			goto out;
 		}
@@ -203,7 +203,7 @@ static int iterate_lsm_forward(struct lsm *lsm)
 		}
 
 		key = (struct test_key *)iter.key.ptr;
-		if (key->value != (i - 1) * 2) {
+		if (key->value != ((long long)i - 1) * 2) {
 			puts("wrong key value");
 			goto out;
 		}
@@ -247,7 +247,7 @@ static int iterate_lsm_backward(struct lsm *lsm)
 		}
 
 		key = (struct test_key *)iter.key.ptr;
-		if (key->value != (i - 1) * 2) {
+		if (key->value != ((long long)i - 1) * 2) {
 			puts("wrong key value");
 			goto out;
 		}
@@ -267,7 +267,7 @@ static int iterate_lsm_backward(struct lsm *lsm)
 		}
 
 		key = (struct test_key *)iter.key.ptr;
-		if (key->value != i * 2) {
+		if (key->value != (long long)i * 2) {
 			puts("wrong key value");
 			goto out;
 		}
@@ -276,6 +276,69 @@ static int iterate_lsm_backward(struct lsm *lsm)
 
 		if (rc < 0 && rc != -ENOENT) {
 			puts("lsm_next failed");
+			goto out;
+		}
+	}
+
+	ret = 0;
+out:
+	lsm_iter_release(&iter);
+	return ret;
+}
+
+static int lookup_lsm(struct lsm *lsm)
+{
+	struct lsm_iter iter;
+	int ret = -1;
+
+	lsm_iter_setup(&iter, lsm);
+
+	for (size_t i = 0; i != KEYS; ++i) {
+		struct test_key data = { .value = 2 * (long long)i };
+		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
+		int rc;
+
+		rc = lsm_lookup(&iter, &key);
+		if (rc < 0) {
+			puts("lookup failed");
+			goto out;
+		}
+		if (!rc) {
+			puts("key not found");
+			goto out;
+		}
+		if (iter.key.size != sizeof(data)) {
+			puts("wrong key size");
+			goto out;
+		}
+		memcpy(&data, iter.key.ptr, iter.key.size);
+		if (data.value != 2 * (long long)i) {
+			puts("wrong key value");
+			goto out;
+		}
+	}
+
+	for (size_t i = 0; i != KEYS; ++i) {
+		struct test_key data = { .value = 2 * (long long)i - 1 };
+		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
+		int rc;
+
+		rc = lsm_lower_bound(&iter, &key);
+		if (rc < 0) {
+			puts("lsm_lower_bound failed");
+			goto out;
+		}
+		if (!lsm_has_item(&iter)) {
+			puts("lsm_lower_bound failed to get a key");
+			goto out;
+		}
+		if (iter.key.size != sizeof(data)) {
+			puts("wrong key size");
+			goto out;
+		}
+		memcpy(&data, iter.key.ptr, iter.key.size);
+		if (data.value != 2 * (long long)i) {
+			puts("wrong key value");
 			goto out;
 		}
 	}
@@ -339,6 +402,10 @@ int main()
 	}
 	if (iterate_lsm_backward(&lsm)) {
 		puts("iterate_iter_forward failed");
+		goto out;
+	}
+	if (lookup_lsm(&lsm)) {
+		puts("lookup_lsm failed");
 		goto out;
 	}
 	ret = 0;
