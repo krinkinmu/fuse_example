@@ -76,7 +76,7 @@ static int test_sync(struct io *io)
 }
 
 struct test_key {
-	size_t value;
+	long long value;
 };
 
 static int test_cmp(const struct lsm_key *l, const struct lsm_key *r)
@@ -126,7 +126,7 @@ static int iterate_ctree_forward(struct ctree *ctree)
 	struct test_key zero = { .value = 0 };
 	struct lsm_key key = { .ptr = &zero, .size = sizeof(zero) };
 	size_t count = 0;
-	size_t expected = 0;
+	long long expected = 0;
 	int ret = -1;
 
 	ctree_iter_setup(&iter, ctree);
@@ -224,7 +224,7 @@ static int iterate_ctree_backward(struct ctree *ctree)
 	struct test_key zero = { .value = 0 };
 	struct lsm_key key = { .ptr = &zero, .size = sizeof(zero) };
 	size_t count = KEYS;
-	size_t expected = (KEYS - 1) * 2;
+	long long expected = (KEYS - 1) * 2;
 	int ret = -1;
 
 	ctree_iter_setup(&iter, ctree);
@@ -324,7 +324,7 @@ static int lookup_ctree(struct ctree *ctree)
 
 	ctree_iter_setup(&iter, ctree);
 	for (size_t i = 0; i != KEYS; ++i) {
-		struct test_key data = { .value = 2 * i };
+		struct test_key data = { .value = 2 * (long long)i };
 		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
 		int ret;
 
@@ -346,14 +346,14 @@ static int lookup_ctree(struct ctree *ctree)
 			goto out;
 		}
 		memcpy(&data, key.ptr, key.size);
-		if (data.value != 2 * i) {
+		if (data.value != 2 * (long long)i) {
 			puts("wrong key value");
 			goto out;
 		}
 	}
 
-	for (size_t i = 0; i != KEYS - 1; ++i) {
-		struct test_key data = { .value = 2 * i + 1 };
+	for (size_t i = 0; i != KEYS; ++i) {
+		struct test_key data = { .value = 2 * (long long)i - 1 };
 		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
 		int ret;
 
@@ -363,7 +363,7 @@ static int lookup_ctree(struct ctree *ctree)
 			goto out;
 		}
 		if (ctree_key(&iter, &key) < 0) {
-			puts("ctree_next failed to get key");
+			puts("ctree_lower_bound failed to get a key");
 			goto out;
 		}
 		if (key.size != sizeof(data)) {
@@ -371,14 +371,14 @@ static int lookup_ctree(struct ctree *ctree)
 			goto out;
 		}
 		memcpy(&data, key.ptr, key.size);
-		if (data.value != 2 * i + 2) {
+		if (data.value != 2 * (long long)i) {
 			puts("wrong key value");
 			goto out;
 		}
 	}
 
-	for (size_t i = 0; i != KEYS - 1; ++i) {
-		struct test_key data = { .value = 2 * i };
+	for (size_t i = 0; i != KEYS; ++i) {
+		struct test_key data = { .value = 2 * (long long)i - 1 };
 		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
 		int ret;
 
@@ -388,7 +388,7 @@ static int lookup_ctree(struct ctree *ctree)
 			goto out;
 		}
 		if (ctree_key(&iter, &key) < 0) {
-			puts("ctree_next failed to get key");
+			puts("ctree_upper_bound failed to get a key");
 			goto out;
 		}
 		if (key.size != sizeof(data)) {
@@ -396,7 +396,7 @@ static int lookup_ctree(struct ctree *ctree)
 			goto out;
 		}
 		memcpy(&data, key.ptr, key.size);
-		if (data.value != 2 * i + 2) {
+		if (data.value != 2 * (long long)i) {
 			puts("wrong key value");
 			goto out;
 		}
