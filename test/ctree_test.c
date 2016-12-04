@@ -89,7 +89,7 @@ static int test_cmp(const struct lsm_key *l, const struct lsm_key *r)
 	return 0;
 }
 
-static const size_t KEYS = 1000000;
+static const size_t KEYS = 10000000;
 
 static int create_ctree(struct ctree *ctree, struct io *io, struct alloc *alloc)
 {
