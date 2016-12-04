@@ -750,6 +750,9 @@ static int __ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 	if (rc < 0)
 		return rc;
 
+	if (!iter->height)
+		return 0;
+
 	struct ctree_node *node;
 	size_t pos;
 	struct aulsmfs_ptr ptr = iter->ptr;
@@ -886,13 +889,13 @@ int ctree_prev(struct ctree_iter *iter)
 
 int ctree_lower_bound(struct ctree_iter *iter, const struct lsm_key *key)
 {
+	if (!iter->height)
+		return 0;
+
 	int rc = __ctree_lookup(iter, key);
 
 	if (rc < 0)
 		return rc;
-
-	if (!iter->height)
-		return 0;
 
 	assert(iter->node[0]);
 	if (iter->pos[0] == iter->node[0]->entries) {
@@ -906,13 +909,13 @@ int ctree_lower_bound(struct ctree_iter *iter, const struct lsm_key *key)
 
 int ctree_upper_bound(struct ctree_iter *iter, const struct lsm_key *key)
 {
+	if (!iter->height)
+		return 0;
+
 	int rc = ctree_lower_bound(iter, key);
 
 	if (rc < 0)
 		return rc;
-
-	if (!iter->height)
-		return 0;
 
 	assert(iter->node[0]);
 	if (iter->pos[0] == iter->node[0]->entries)
@@ -929,13 +932,13 @@ int ctree_upper_bound(struct ctree_iter *iter, const struct lsm_key *key)
 
 int ctree_lookup(struct ctree_iter *iter, const struct lsm_key *key)
 {
+	if (!iter->height)
+		return 0;
+
 	int rc = ctree_lower_bound(iter, key);
 
 	if (rc < 0)
 		return rc;
-
-	if (!iter->height)
-		return 0;
 
 	assert(iter->node[0]);
 	if (iter->pos[0] == iter->node[0]->entries)
