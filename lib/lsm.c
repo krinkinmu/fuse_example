@@ -263,9 +263,10 @@ static int lsm_set_the_smallest(struct lsm_iter *iter)
 	return 0;
 }
 
-int lsm_set_the_largest(struct lsm_iter *iter)
+int lsm_set_prev(struct lsm_iter *iter)
 {
 	const struct lsm *const lsm = iter->lsm;
+	const struct lsm_key last = iter->key;
 
 	struct lsm_key key = { NULL, 0 };
 	struct lsm_val val = { NULL, 0 };
@@ -275,6 +276,12 @@ int lsm_set_the_largest(struct lsm_iter *iter)
 
 	for (int i = iter->from; i <= iter->to; ++i) {
 		if (!iter->keyi[i].ptr)
+			continue;
+
+		/* Ignore keys that are larger than previous visited
+		 * key, since it might be the smallest key in the
+		 * respective tree and we just can't move further back. */
+		if (last.ptr && lsm->cmp(&last, &iter->keyi[i]) <= 0)
 			continue;
 
 		if (!key.ptr) {
@@ -500,11 +507,9 @@ int lsm_prev(struct lsm_iter *iter)
 		}
 	}
 
-	const int rc = lsm_set_the_largest(iter);
-
-	if (rc < 0)
-		return rc;
-	return moved ? 0 : -ENOENT;
+	if (!moved)
+		return -ENOENT;
+	return lsm_set_prev(iter);
 }
 
 int lsm_has_item(const struct lsm_iter *iter)
