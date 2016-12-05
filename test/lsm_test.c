@@ -117,7 +117,7 @@ static int create_lsm(struct lsm *lsm)
 			return -1;
 		}
 
-		if ((i + 1) % 100000 == 0) {
+		if ((i + 1) % 70000 == 0) {
 			rc = lsm_merge(lsm, 0, &policy);
 			if (rc < 0) {
 				puts("lsm_merge failed");
@@ -125,7 +125,7 @@ static int create_lsm(struct lsm *lsm)
 			}
 		}
 
-		if ((i + 1) % 1000000 == 0) {
+		if ((i + 1) % 490000 == 0) {
 			rc = lsm_merge(lsm, 2, &policy);
 			if (rc < 0) {
 				puts("lsm_merge failed");
@@ -133,7 +133,7 @@ static int create_lsm(struct lsm *lsm)
 			}
 		}
 
-		if ((i + 1) % 5000000 == 0) {
+		if ((i + 1) % 3430000 == 0) {
 			rc = lsm_merge(lsm, 3, &policy);
 			if (rc < 0) {
 				puts("lsm_merge failed");
