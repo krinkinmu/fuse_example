@@ -47,7 +47,7 @@ int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 	return mtree_add(&lsm->c0, key, val);
 }
 
-static int __lsm_build_default(struct lsm_merge_policy *policy)
+static int lsm_build_default(struct lsm_merge_policy *policy)
 {
 	const int drop = policy->drop_deleted;
 
@@ -72,7 +72,7 @@ static int __lsm_build_default(struct lsm_merge_policy *policy)
 	return 0;
 }
 
-static int __lsm_call_build(struct lsm_merge_policy *policy)
+static int lsm_call_build(struct lsm_merge_policy *policy)
 {
 	struct ctree_builder *builder = &policy->builder;
 	struct lsm_iter *iter = &policy->iter;
@@ -81,7 +81,7 @@ static int __lsm_call_build(struct lsm_merge_policy *policy)
 	if (rc < 0)
 		return rc;
 
-	rc = __lsm_build_default(policy);
+	rc = policy->build(policy);
 	if (rc < 0)
 		return rc;
 
@@ -117,7 +117,7 @@ static int __lsm_merge(struct lsm_merge_policy *policy)
 	iter->from = from;
 	iter->to = to;
 
-	rc = __lsm_call_build(policy);
+	rc = lsm_call_build(policy);
 	lsm_iter_release(iter);
 	if (rc < 0) {
 		ctree_builder_cancel(builder);
@@ -174,6 +174,27 @@ int lsm_merge(struct lsm *lsm, int tree, struct lsm_merge_policy *policy)
 	}
 
 	return __lsm_merge(policy);
+}
+
+static int lsm_no_delete(struct lsm_merge_policy *policy,
+			const struct lsm_key *key, const struct lsm_val *val)
+{
+	(void) policy;
+	(void) key;
+	(void) val;
+	return 0;
+}
+
+void lsm_merge_policy_setup(struct lsm_merge_policy *policy)
+{
+	memset(policy, 0, sizeof(*policy));
+	policy->deleted = &lsm_no_delete;
+	policy->build = &lsm_build_default;
+}
+
+void lsm_merge_policy_release(struct lsm_merge_policy *policy)
+{
+	memset(policy, 0, sizeof(*policy));
 }
 
 

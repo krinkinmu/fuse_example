@@ -91,21 +91,11 @@ static int test_cmp(const struct lsm_key *l, const struct lsm_key *r)
 
 static const size_t KEYS = 10000000;
 
-static int test_key_deleted(struct lsm_merge_policy *policy,
-			const struct lsm_key *key, const struct lsm_val *val)
-{
-	(void) policy;
-	(void) key;
-	(void) val;
-	return 0;
-}
-
 static int create_lsm(struct lsm *lsm)
 {
 	struct lsm_merge_policy policy;
 	int rc;
 
-	policy.deleted = &test_key_deleted;
 	for (size_t i = 0; i != KEYS; ++i) {
 		struct test_key data = { .value = 2 * (long long)i };
 		struct lsm_key key = { .ptr = &data, .size = sizeof(data) };
@@ -118,7 +108,9 @@ static int create_lsm(struct lsm *lsm)
 		}
 
 		if ((i + 1) % 70000 == 0) {
+			lsm_merge_policy_setup(&policy);
 			rc = lsm_merge(lsm, 0, &policy);
+			lsm_merge_policy_release(&policy);
 			if (rc < 0) {
 				puts("lsm_merge failed");
 				return -1;
@@ -126,7 +118,9 @@ static int create_lsm(struct lsm *lsm)
 		}
 
 		if ((i + 1) % 490000 == 0) {
+			lsm_merge_policy_setup(&policy);
 			rc = lsm_merge(lsm, 2, &policy);
+			lsm_merge_policy_release(&policy);
 			if (rc < 0) {
 				puts("lsm_merge failed");
 				return -1;
@@ -134,7 +128,9 @@ static int create_lsm(struct lsm *lsm)
 		}
 
 		if ((i + 1) % 3430000 == 0) {
+			lsm_merge_policy_setup(&policy);
 			rc = lsm_merge(lsm, 3, &policy);
+			lsm_merge_policy_release(&policy);
 			if (rc < 0) {
 				puts("lsm_merge failed");
 				return -1;

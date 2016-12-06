@@ -99,9 +99,14 @@ struct lsm_merge_policy {
 	int drop_deleted;
 	int tree;
 
+	/* Only required for default build function. */
 	int (*deleted)(struct lsm_merge_policy *, const struct lsm_key *,
 				const struct lsm_val *);
+	int (*build)(struct lsm_merge_policy *);
 };
+
+void lsm_merge_policy_setup(struct lsm_merge_policy *policy);
+void lsm_merge_policy_release(struct lsm_merge_policy *policy);
 
 int lsm_merge(struct lsm *lsm, int tree, struct lsm_merge_policy *policy);
 
