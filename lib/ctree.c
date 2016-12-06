@@ -374,6 +374,7 @@ static int ctree_builder_alloc(struct ctree_builder *builder, uint64_t size,
 	if (rc < 0)
 		return rc;
 
+	builder->pages += size;
 	if (builder->ranges) {
 		struct range *last = &builder->reserved[builder->ranges - 1];
 
@@ -387,7 +388,6 @@ static int ctree_builder_alloc(struct ctree_builder *builder, uint64_t size,
 
 	new->begin = *offs;
 	new->end = *offs + size;
-	builder->pages += size;
 	return 0;
 }
 
