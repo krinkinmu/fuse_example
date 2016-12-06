@@ -47,20 +47,17 @@ int lsm_add(struct lsm *lsm, const struct lsm_key *key,
 	return mtree_add(&lsm->c0, key, val);
 }
 
-static int __lsm_build(struct lsm_merge_policy *policy)
+static int __lsm_build_default(struct lsm_merge_policy *policy)
 {
 	const int drop = policy->drop_deleted;
 
 	struct lsm_iter *iter = &policy->iter;
 	struct ctree_builder *builder = &policy->builder;
-	int rc = lsm_begin(iter);
-
-	if (rc < 0)
-		return rc;
 
 	while (lsm_has_item(iter)) {
 		const struct lsm_key key = iter->key;
 		const struct lsm_val val = iter->val;
+		int rc;
 
 		if (!drop || !policy->deleted(policy, &key, &val)) {
 			rc = ctree_builder_append(builder, &key, &val);
@@ -72,6 +69,22 @@ static int __lsm_build(struct lsm_merge_policy *policy)
 		if (rc < 0 && rc != -ENOENT)
 			return rc;
 	}
+	return 0;
+}
+
+static int __lsm_call_build(struct lsm_merge_policy *policy)
+{
+	struct ctree_builder *builder = &policy->builder;
+	struct lsm_iter *iter = &policy->iter;
+	int rc = lsm_begin(iter);
+
+	if (rc < 0)
+		return rc;
+
+	rc = __lsm_build_default(policy);
+	if (rc < 0)
+		return rc;
+
 	return ctree_builder_finish(builder);
 }
 
@@ -104,7 +117,7 @@ static int __lsm_merge(struct lsm_merge_policy *policy)
 	iter->from = from;
 	iter->to = to;
 
-	rc = __lsm_build(policy);
+	rc = __lsm_call_build(policy);
 	lsm_iter_release(iter);
 	if (rc < 0) {
 		ctree_builder_cancel(builder);
