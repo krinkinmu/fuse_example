@@ -650,10 +650,8 @@ void ctree_iter_release(struct ctree_iter *iter)
 		}
 	}
 
-	if (iter->node != iter->_node)
-		free(iter->node);
-	if (iter->pos != iter->_pos)
-		free(iter->pos);
+	free(iter->node);
+	free(iter->pos);
 	memset(iter, 0, sizeof(*iter));
 }
 
@@ -663,23 +661,16 @@ static int ctree_iter_prepare(struct ctree_iter *iter)
 		return 0;
 
 	assert(!iter->node && !iter->pos);
-	if (iter->height > CTREE_ITER_INLINE_HEIGHT) {
-		iter->node = calloc(iter->height, sizeof(*iter->node));
-		if (!iter->node)
-			return -ENOMEM;
+	iter->node = calloc(iter->height, sizeof(*iter->node));
+	if (!iter->node)
+		return -ENOMEM;
 
-		iter->pos = calloc(iter->height, sizeof(*iter->pos));
-		if (!iter->pos) {
-			free(iter->node);
-			iter->node = NULL;
-			return -ENOMEM;
-		}
-		return 0;
+	iter->pos = calloc(iter->height, sizeof(*iter->pos));
+	if (!iter->pos) {
+		free(iter->node);
+		iter->node = NULL;
+		return -ENOMEM;
 	}
-
-	iter->node = iter->_node;
-	iter->pos = iter->_pos;
-	
 	return 0;
 }
 
