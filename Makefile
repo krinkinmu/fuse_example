@@ -8,8 +8,8 @@ MKFS_LFLAGS	:=
 LIB_CFLAGS	:=
 
 CFLAGS	:= -D_GNU_SOURCE\
-	-g -Wall -Wextra -Werror -pedantic -Wframe-larger-than=2048 \
-	-Wstack-usage=2048 -Wno-unknown-warning-option \
+	-g -Wall -Wextra -Werror -pedantic -Wframe-larger-than=1024 \
+	-Wstack-usage=1024 -Wno-unknown-warning-option \
 	-fno-omit-frame-pointer $(if $(DEBUG),-DDEBUG,-O3)
 
 LFLAGS	:= -L. -laulsmfs -lauutil
