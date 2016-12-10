@@ -528,6 +528,12 @@ int ctree_builder_finish(struct ctree_builder *builder)
 		++level;
 	}
 
+	if (!level) {
+		memset(&builder->ptr, 0, sizeof(builder->ptr));
+		builder->height = 0;
+		return 0;
+	}
+
 	/* We have written all but last level, the node will be root of the
 	 * ctree. */
 	struct ctree_node *root = ctree_builder_node(builder, level);
