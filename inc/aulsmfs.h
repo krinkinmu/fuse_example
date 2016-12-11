@@ -32,6 +32,19 @@ struct aulsmfs_ptr {
 	le64_t csum;
 } __attribute__((packed));
 
+/* One entry inside transaction log. We put data right behind log entry. */
+struct aulsmfs_log_entry {
+	le16_t entry_size;
+} __attribute__((packed));
+
+/* Transaction log is a list of log chunks. Every chunk has a header, so that
+ * we can link chunks together. Zero filled next field is a end tag. */
+struct aulsmfs_log_header {
+	struct aulsmfs_ptr next;
+	le32_t entries;
+	le32_t bytes;
+} __attribute__((packed));
+
 /* Both key size and value size are given in bytes. */
 struct aulsmfs_node_entry {
 	le16_t key_size;
