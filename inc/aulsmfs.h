@@ -32,17 +32,25 @@ struct aulsmfs_ptr {
 	le64_t csum;
 } __attribute__((packed));
 
-/* One entry inside transaction log. We put data right behind log entry. */
 struct aulsmfs_log_entry {
 	le16_t entry_size;
 } __attribute__((packed));
 
-/* Transaction log is a list of log chunks. Every chunk has a header, so that
- * we can link chunks together. Zero filled next field is a end tag. */
+/* For every transaction we have log header. Every log header contains array of
+ * aulsmfs_ptr structures that points to chunks. For small transactions we would
+ * have only one such chunk (so it's a bit ineffective), for large transactions
+ * we could have more.
+ * Each transaction can be in one of two states: registered and replayed.
+ * Registered transaction could be not fully replayed, so we can't remove it.
+ * Replayed transaction can be removed after next merge of all the trees.
+ * All in all transactions work as follows, for every operation we at first
+ * create transaction log, then we register it and then we replay it and mark
+ * it as replayed. Perioadically we merge all memory trees and after we merged
+ * them we can make commit and drop replayed transactions.
+ */
 struct aulsmfs_log_header {
-	struct aulsmfs_ptr next;
-	le32_t entries;
-	le32_t bytes;
+	le32_t chunks;
+	le32_t pages;
 } __attribute__((packed));
 
 /* Both key size and value size are given in bytes. */
@@ -89,6 +97,9 @@ struct aulsmfs_super {
 	/* Stores all the roots (snapshots) of the filesystem, root
 	 * with the largest id is current root of the filesystem. */
 	struct aulsmfs_tree rootmap;
+
+	struct aulsmfs_ptr registered_logs;
+	struct aulsmfs_ptr replayed_logs;
 
 	le64_t csum;
 } __attribute__((packed));
