@@ -47,4 +47,19 @@ static inline int io_sync(struct io *io)
 	return ops->sync(io);
 }
 
+static inline size_t io_align(const struct io *io, size_t size)
+{
+	return (size + io->page_size - 1) & ~(io->page_size - 1);
+}
+
+static inline size_t io_pages(const struct io *io, size_t size)
+{
+	return (size + io->page_size - 1) / io->page_size;
+}
+
+static inline size_t io_bytes(const struct io *io, size_t pages)
+{
+	return pages * io->page_size;
+}
+
 #endif /*__AULSMFS_IO_H__*/
