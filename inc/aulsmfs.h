@@ -33,7 +33,7 @@ struct aulsmfs_ptr {
 } __attribute__((packed));
 
 struct aulsmfs_log_entry {
-	le16_t entry_size;
+	le16_t size;
 } __attribute__((packed));
 
 /* For every transaction we have log header. Every log header contains array of
