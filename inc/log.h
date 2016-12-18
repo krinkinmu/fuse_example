@@ -19,14 +19,14 @@ struct trans_log {
 
 	struct aulsmfs_ptr *chunk;
 	size_t chunks;
-	size_t max_cunks;
-	size_t pages;
+	size_t max_chunks;
 
 	void *chunk_data;
 	size_t chunk_size;
 	size_t chunk_max_size;
 
-	struct aulsmfs_log_header header;
+	size_t pages;
+	struct aulsmfs_ptr header;
 };
 
 void trans_log_setup(struct trans_log *log, struct io *io, struct alloc *alloc);
