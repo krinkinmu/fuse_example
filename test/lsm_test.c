@@ -26,7 +26,7 @@ static int test_reserve(struct alloc *a, uint64_t size, uint64_t *offs)
 	return 0;
 }
 
-static int test_persist(struct alloc *a, uint64_t offs, uint64_t size)
+static int test_persist(struct alloc *a, uint64_t size, uint64_t offs)
 {
 	(void) a;
 	(void) offs;
@@ -34,7 +34,7 @@ static int test_persist(struct alloc *a, uint64_t offs, uint64_t size)
 	return 0;
 }
 
-static int test_cancel(struct alloc *a, uint64_t offs, uint64_t size)
+static int test_cancel(struct alloc *a, uint64_t size, uint64_t offs)
 {
 	(void) a;
 	(void) offs;
@@ -42,7 +42,7 @@ static int test_cancel(struct alloc *a, uint64_t offs, uint64_t size)
 	return 0;
 }
 
-static int test_free(struct alloc *a, uint64_t offs, uint64_t size)
+static int test_free(struct alloc *a, uint64_t size, uint64_t offs)
 {
 	(void) a;
 	(void) offs;
