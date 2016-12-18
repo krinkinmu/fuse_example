@@ -33,19 +33,19 @@ static inline int lsm_reserve(struct lsm *lsm, uint64_t size, uint64_t *offs)
 	return alloc_reserve(lsm->alloc, size, offs);
 }
 
-static inline int lsm_persist(struct lsm *lsm, uint64_t offs, uint64_t size)
+static inline int lsm_persist(struct lsm *lsm, uint64_t size, uint64_t offs)
 {
-	return alloc_commit(lsm->alloc, offs, size);
+	return alloc_commit(lsm->alloc, size, offs);
 }
 
-static inline int lsm_cancel(struct lsm *lsm, uint64_t offs, uint64_t size)
+static inline int lsm_cancel(struct lsm *lsm, uint64_t size, uint64_t offs)
 {
-	return alloc_cancel(lsm->alloc, offs, size);
+	return alloc_cancel(lsm->alloc, size, offs);
 }
 
-static inline int lsm_free(struct lsm *lsm, uint64_t offs, uint64_t size)
+static inline int lsm_free(struct lsm *lsm, uint64_t size, uint64_t offs)
 {
-	return alloc_free(lsm->alloc, offs, size);
+	return alloc_free(lsm->alloc, size, offs);
 }
 
 void lsm_setup(struct lsm *lsm, struct io *io, struct alloc *alloc,
