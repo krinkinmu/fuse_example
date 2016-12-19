@@ -34,8 +34,8 @@ static int trans_log_reserve_chunk(struct trans_log *log, size_t count)
 	if (chunks < need)
 		chunks = need;
 
-	const size_t size = chunks * sizeof(*log->chunk) +
-				sizeof(*log->header);
+	const size_t size = io_align(log->io, chunks * sizeof(*log->chunk)
+				+ sizeof(*log->header));
 	struct aulsmfs_log_header *header = realloc(log->chunk, size);
 
 	if (!header)
@@ -43,6 +43,31 @@ static int trans_log_reserve_chunk(struct trans_log *log, size_t count)
 	log->header = header;
 	log->chunk = (struct aulsmfs_ptr *)(header + 1);
 	log->max_chunks = chunks;
+	return 0;
+}
+
+static int trans_log_write(struct trans_log *log, const void *data,
+			size_t size, struct aulsmfs_ptr *res)
+{
+	struct alloc *alloc = log->alloc;
+	struct io *io = log->io;
+
+	struct aulsmfs_ptr ptr;
+	uint64_t offs;
+	int rc = alloc_reserve(alloc, size, &offs);
+
+	if (rc < 0)
+		return rc;
+
+	rc = io_write(io, data, size, offs);
+	if (rc < 0) {
+		assert(alloc_cancel(alloc, size, offs) == 0);
+		return rc;
+	}
+	ptr.size = htole64(size);
+	ptr.offs = htole64(offs);
+	ptr.csum = htole64(crc64(data, io_bytes(io, size)));
+	memcpy(res, &ptr, sizeof(ptr));
 	return 0;
 }
 
@@ -58,28 +83,20 @@ static int trans_log_flush(struct trans_log *log)
 	if (rc < 0)
 		return rc;
 
-	const size_t pages = io_pages(log->io, log->chunk_size);
-	const size_t bytes = io_bytes(log->io, pages);
-	uint64_t offs;
+	struct io *io = log->io;
 
-	rc = alloc_reserve(log->alloc, pages, &offs);
-	if (rc < 0)
-		return rc;
+	const size_t pages = io_pages(io, log->chunk_size);
+	const size_t bytes = io_bytes(io, pages);
 
 	memset((char *)log->chunk_data + log->chunk_size, 0,
 				bytes - log->chunk_size);
-	rc = io_write(log->io, log->chunk_data, pages, offs);
-	if (rc < 0) {
-		assert(alloc_cancel(log->alloc, pages, offs) == 0);
+	rc = trans_log_write(log, log->chunk_data, pages,
+				&log->chunk[log->chunks]);
+	if (rc < 0)
 		return rc;
-	}
 
-	struct aulsmfs_ptr *ptr = &log->chunk[log->chunks++];
-
-	ptr->size = htole64(pages);
-	ptr->offs = htole64(offs);
-	ptr->csum = htole64(crc64(log->chunk_data, bytes));
 	log->chunk_size = 0;
+	log->chunks++;
 	log->pages += pages;
 	return 0;
 }
@@ -148,23 +165,8 @@ int trans_log_finish(struct trans_log *log)
 	log->header->chunks = htole32(log->chunks);
 	log->header->pages = htole32(log->pages);
 
-	uint64_t offs;
-
-	rc = alloc_reserve(log->alloc, pages, &offs);
-	if (rc < 0)
-		return rc;
-
 	memset((char *)log->header + size, 0, bytes - size);
-	rc = io_write(log->io, log->header, pages, offs);
-	if (rc < 0) {
-		assert(alloc_cancel(log->alloc, pages, offs) == 0);
-		return rc;
-	}
-
-	log->ptr.offs = htole64(offs);
-	log->ptr.size = htole64(pages);
-	log->ptr.csum = crc64(log->header, bytes);
-	return 0;
+	return trans_log_write(log, log->header, pages, &log->ptr);
 }
 
 void trans_log_cancel(struct trans_log *log)
