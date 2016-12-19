@@ -17,6 +17,7 @@ struct trans_log {
 	struct io *io;
 	struct alloc *alloc;
 
+	struct aulsmfs_log_header *header;
 	struct aulsmfs_ptr *chunk;
 	size_t chunks;
 	size_t max_chunks;
@@ -26,7 +27,7 @@ struct trans_log {
 	size_t chunk_max_size;
 
 	size_t pages;
-	struct aulsmfs_ptr header;
+	struct aulsmfs_ptr ptr;
 };
 
 void trans_log_setup(struct trans_log *log, struct io *io, struct alloc *alloc);

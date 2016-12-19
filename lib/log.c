@@ -17,7 +17,7 @@ void trans_log_setup(struct trans_log *log, struct io *io, struct alloc *alloc)
 
 void trasn_log_release(struct trans_log *log)
 {
-	free(log->chunk);
+	free(log->header);
 	free(log->chunk_data);
 	memset(log, 0, sizeof(*log));
 }
@@ -34,12 +34,14 @@ static int trans_log_reserve_chunk(struct trans_log *log, size_t count)
 	if (chunks < need)
 		chunks = need;
 
-	struct aulsmfs_ptr *chunk = realloc(log->chunk,
-				chunks * sizeof(*log->chunk));
+	const size_t size = chunks * sizeof(*log->chunk) +
+				sizeof(*log->header);
+	struct aulsmfs_log_header *header = realloc(log->chunk, size);
 
-	if (!chunk)
+	if (!header)
 		return -ENOMEM;
-	log->chunk = chunk;
+	log->header = header;
+	log->chunk = (struct aulsmfs_ptr *)(header + 1);
 	log->max_chunks = chunks;
 	return 0;
 }
@@ -138,40 +140,30 @@ int trans_log_finish(struct trans_log *log)
 	if (rc < 0)
 		return rc;
 
-	struct aulsmfs_log_header *header;
-	struct aulsmfs_ptr *chunk;
-	const size_t size = sizeof(*header) + log->chunks * sizeof(*chunk);
+	const size_t size = sizeof(*log->header) +
+				log->chunks * sizeof(*log->chunk);
 	const size_t pages = io_pages(log->io, size);
 	const size_t bytes = io_bytes(log->io, pages);
 
-	header = calloc(1, bytes);
-	if (!header)
-		return -ENOMEM;
-
-	chunk = (struct aulsmfs_ptr *)(header + 1);
-	header->chunks = htole32(log->chunks);
-	header->pages = htole32(log->pages);
-	memcpy(chunk, log->chunk, sizeof(*chunk) * log->chunks);
+	log->header->chunks = htole32(log->chunks);
+	log->header->pages = htole32(log->pages);
 
 	uint64_t offs;
 
 	rc = alloc_reserve(log->alloc, pages, &offs);
-	if (rc < 0) {
-		free(header);
+	if (rc < 0)
 		return rc;
-	}
 
-	rc = io_write(log->io, header, pages, offs);
+	memset((char *)log->header + size, 0, bytes - size);
+	rc = io_write(log->io, log->header, pages, offs);
 	if (rc < 0) {
-		free(header);
 		assert(alloc_cancel(log->alloc, pages, offs) == 0);
 		return rc;
 	}
 
-	log->header.offs = htole64(offs);
-	log->header.size = htole64(pages);
-	log->header.csum = crc64(header, bytes);
-	free(header);
+	log->ptr.offs = htole64(offs);
+	log->ptr.size = htole64(pages);
+	log->ptr.csum = crc64(log->header, bytes);
 	return 0;
 }
 
